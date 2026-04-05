@@ -19,6 +19,7 @@ import java.util.logging.Logger;
 final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
 
     static final String PROVIDER_KEY = "BetterMapPlayerRadar";
+    private static final String MARKER_PREFIX = "PlayerRadar-";
 
     private static final Logger LOGGER = Logger.getLogger(BetterMapCompatProvider.class.getName());
 
@@ -40,7 +41,6 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
 
         UUID viewerUuid = ((CommandSender) viewer).getUuid();
         Vector3d viewerPosition = findViewerPosition(playerRefs, viewerUuid);
-        boolean singlePlayerViewerFallback = playerRefs.size() == 1;
         long maxDistanceSquared = maxDistanceSquared(viewerSettings.radarRange());
 
         PlayerAvatarConfig config = PlayerAvatarMarkerPlugin.getConfig();
@@ -54,7 +54,7 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                 }
 
                 boolean isViewer = viewerUuid != null && viewerUuid.equals(playerUuid);
-                if (isViewer && !singlePlayerViewerFallback) {
+                if (isViewer && !PlayerAvatarMarkerSupport.shouldShowSelfMarker(viewer)) {
                     continue;
                 }
 
@@ -78,14 +78,25 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                     playerName = playerUuid.toString().substring(0, 8);
                 }
 
+                int distance = 0;
+                if (!isViewer && viewerPosition != null) {
+                    distance = (int) Math.sqrt(squaredDistance(viewerPosition, playerTransform.getPosition()));
+                }
+
+                String markerLabel = null;
+                if (config == null || config.showNickname) {
+                    markerLabel = playerName + " (" + distance + "m)";
+                }
+
                 Vector3f markerRotation = PlayerAvatarMarkerSupport.resolveMarkerRotation(config, ref.getHeadRotation());
                 Transform markerTransform = new Transform(playerTransform.getPosition(), markerRotation);
                 PlayerAvatarMarkerSupport.AvatarVisual avatarVisual =
                         PlayerAvatarMarkerSupport.resolveAvatarVisual(playerUuid, playerName, avatarSize);
 
-                MapMarker marker = PlayerAvatarMarkerSupport.createPlainMarker(
-                        PlayerAvatarMarkerSupport.buildMarkerId(playerUuid, avatarVisual.markerVariant()),
-                        config == null || config.showNickname ? playerName : null,
+                MapMarker marker = PlayerAvatarMarkerSupport.createPlainPlayerMarker(
+                        MARKER_PREFIX + playerUuid,
+                    playerUuid,
+                        markerLabel,
                         avatarVisual.markerImage(),
                         markerTransform);
 

@@ -28,7 +28,6 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
     public void update(World world, Player viewer, MarkersCollector collector) {
         Collection<PlayerRef> playerRefs = world.getPlayerRefs();
         if (playerRefs == null) return;
-        boolean singlePlayerViewerFallback = playerRefs.size() == 1;
 
         WorldMapConfig worldMapConfig = world.getGameplayConfig().getWorldMapConfig();
         if (worldMapConfig != null && !worldMapConfig.isDisplayPlayers()) {
@@ -57,16 +56,17 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
                         PlayerAvatarMarkerSupport.resolveAvatarVisual(playerUuid, playerName, avatarSize);
                 Vector3f markerRotation = PlayerAvatarMarkerSupport.resolveMarkerRotation(config, headRotation);
                 Transform transform = new Transform(position, markerRotation);
-                if (isViewer && !singlePlayerViewerFallback) {
+                if (isViewer && !PlayerAvatarMarkerSupport.shouldShowSelfMarker(viewer)) {
                     continue;
                 }
 
-                MapMarker marker = PlayerAvatarMarkerSupport.createPlainMarker(
+                MapMarker marker = PlayerAvatarMarkerSupport.createNamedPlayerMarker(
                         PlayerAvatarMarkerSupport.buildMarkerId(playerUuid, avatarVisual.markerVariant()),
+                        playerUuid,
                         config == null || config.showNickname ? playerName : null,
                         avatarVisual.markerImage(),
                         transform);
-                collector.add(marker);
+                collector.addIgnoreViewDistance(marker);
             } catch (Exception e) {
                 LOGGER.warning("[PlayerAvatarMarker] Error creating marker: " + e.getMessage());
             }

@@ -3,9 +3,14 @@ package dev.thenexusgates.playeravatarmarker;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.FormattedMessage;
+import com.hypixel.hytale.protocol.packets.worldmap.PlayerMarkerComponent;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerBuilder;
 import com.hypixel.hytale.server.core.util.PositionUtil;
+import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
@@ -20,6 +25,7 @@ final class PlayerAvatarMarkerSupport {
     private static final Logger LOGGER = Logger.getLogger(PlayerAvatarMarkerSupport.class.getName());
     private static final Set<UUID> persistedAvatars =
             Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private static final Field CLIENT_HAS_WORLDMAP_VISIBLE_FIELD = resolveClientHasWorldMapVisibleField();
 
     private PlayerAvatarMarkerSupport() {}
 
@@ -66,6 +72,29 @@ final class PlayerAvatarMarkerSupport {
         return MARKER_PREFIX + playerUuid + markerVariant;
     }
 
+    static boolean shouldShowSelfMarker(Player viewer) {
+        if (viewer == null) {
+            return true;
+        }
+
+        Field field = CLIENT_HAS_WORLDMAP_VISIBLE_FIELD;
+        if (field == null) {
+            return true;
+        }
+
+        try {
+            WorldMapTracker worldMapTracker = viewer.getWorldMapTracker();
+            if (worldMapTracker == null) {
+                return true;
+            }
+
+            return field.getBoolean(worldMapTracker);
+        } catch (ReflectiveOperationException e) {
+            LOGGER.warning("[PlayerAvatarMarker] Failed to read world map visibility: " + e.getMessage());
+            return true;
+        }
+    }
+
     static MapMarker createPlainMarker(String markerId, String markerLabel, String markerImage, Transform transform) {
         com.hypixel.hytale.protocol.Transform transformPacket = PositionUtil.toTransformPacket(transform);
         FormattedMessage formattedMessage = null;
@@ -75,6 +104,40 @@ final class PlayerAvatarMarkerSupport {
         }
 
         return new MapMarker(markerId, formattedMessage, markerImage, transformPacket, null, null);
+    }
+
+    static MapMarker createPlainPlayerMarker(String markerId, UUID playerUuid, String markerLabel, String markerImage, Transform transform) {
+        com.hypixel.hytale.protocol.Transform transformPacket = PositionUtil.toTransformPacket(transform);
+        FormattedMessage formattedMessage = null;
+        if (markerLabel != null && !markerLabel.isBlank()) {
+            formattedMessage = new FormattedMessage();
+            formattedMessage.rawText = markerLabel;
+        }
+
+        PlayerMarkerComponent[] components = playerUuid != null
+                ? new PlayerMarkerComponent[] {new PlayerMarkerComponent(playerUuid)}
+                : null;
+        return new MapMarker(markerId, formattedMessage, markerImage, transformPacket, null, components);
+    }
+
+    static MapMarker createNamedPlayerMarker(String markerId, UUID playerUuid, String markerLabel, String markerImage, Transform transform) {
+        MapMarkerBuilder builder = new MapMarkerBuilder(markerId, markerImage, transform);
+        builder.withComponent(new PlayerMarkerComponent(playerUuid));
+        if (markerLabel != null && !markerLabel.isBlank()) {
+            builder.withCustomName(markerLabel);
+        }
+        return builder.build();
+    }
+
+    private static Field resolveClientHasWorldMapVisibleField() {
+        try {
+            Field field = WorldMapTracker.class.getDeclaredField("clientHasWorldMapVisible");
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException e) {
+            LOGGER.warning("[PlayerAvatarMarker] WorldMapTracker.clientHasWorldMapVisible is unavailable: " + e.getMessage());
+            return null;
+        }
     }
 
     record AvatarVisual(String markerVariant, String markerImage) {}
