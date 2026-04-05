@@ -1,7 +1,7 @@
 {
   "Group": "thenexusgates",
   "Name": "PlayerAvatarMarker",
-  "Version": "1.1.0",
+  "Version": "1.2.0",
   "Description": "Shows unique avatar icons for each player on the world map (M key), using hyvatar.io portraits.",
   "Authors": [
     {

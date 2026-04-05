@@ -2,6 +2,8 @@
 
 Instructions for publishing **PlayerAvatarMarker** on GitHub and CurseForge.
 
+Current release target: `v1.2.0`
+
 ---
 
 ## 1. Build the release jar
@@ -13,14 +15,14 @@ cd PlayerAvatarMarker
 
 The output jar is at:
 ```
-build/libs/PlayerAvatarMarker-1.1.0.jar
+build/libs/PlayerAvatarMarker-1.2.0.jar
 ```
 
 Verify it works by copying to your server's `mods/` folder and starting the server.
 The console should show:
 ```
-[PlayerAvatarMarker] Starting v1.1.0
-[PlayerAvatarMarker] Provider registered: <world> (TPS set to 20)
+[PlayerAvatarMarker] Starting v1.2.0
+[PlayerAvatarMarker] Provider registered: <world>
 [PlayerAvatarMarker] Ready.
 ```
 
@@ -49,12 +51,12 @@ When a player joins, you should also see:
 ### Create a release
 
 1. Go to **Releases** → **Draft a new release**
-2. **Tag:** `v1.0.0`
-3. **Release title:** `PlayerAvatarMarker v1.0.0`
+2. **Tag:** `v1.2.0`
+3. **Release title:** `PlayerAvatarMarker v1.2.0`
 4. **Description:**
 
 ```markdown
-## PlayerAvatarMarker v1.0.0
+## PlayerAvatarMarker v1.2.0
 
 Shows unique player avatar portraits on the Hytale world map, fetched from [hyvatar.io](https://hyvatar.io).
 
@@ -62,13 +64,14 @@ Shows unique player avatar portraits on the Hytale world map, fetched from [hyva
 - Circular avatar portrait for each online player on the world map
 - Avatars fetched from hyvatar.io, cached in memory — no repeated downloads
 - Unlimited players supported
-- Player nickname shown below their avatar
-- Suppresses the default blue player indicator — replaced by the custom avatar
-- Real-time position sync (20 TPS)
-- Configurable: background, background color, rotation, nickname visibility
+- Player nickname shown without hover
+- Improved multiplayer responsiveness using live movement packet tracking
+- BetterMap by Paralaxe compatibility with dedicated player radar integration
+- Duplicate compass/cursor overlay behavior corrected
+- Configurable: background, background color, rotation, nickname visibility, avatar size
 
 ### Installation
-1. Copy `PlayerAvatarMarker-1.0.0.jar` to `UserData/Saves/<YourWorld>/mods/`
+1. Copy `PlayerAvatarMarker-1.2.0.jar` to `UserData/Saves/<YourWorld>/mods/`
 2. Start the server — no extra arguments required
 
 ### Configuration
@@ -76,9 +79,10 @@ Config is auto-generated at `mods/PlayerAvatarMarkerAssets/playeravatarmarker-co
 ```json
 {
   "enableRotation": false,
-  "enableBackground": false,
+  "enableBackground": true,
   "backgroundColor": "#2D2D2D",
-  "showNickname": true
+  "showNickname": true,
+  "avatarSize": 64
 }
 ```
 
@@ -87,7 +91,7 @@ Config is auto-generated at `mods/PlayerAvatarMarkerAssets/playeravatarmarker-co
 - Java 25
 ```
 
-5. **Attach:** `PlayerAvatarMarker-1.0.0.jar`
+5. **Attach:** `PlayerAvatarMarker-1.2.0.jar`
 6. Click **Publish release**
 
 ---
@@ -123,15 +127,15 @@ A Hytale server mod that shows **unique avatar portraits** for each player on th
 - Circular avatar portrait for each online player on the world map
 - Avatars fetched from hyvatar.io on first join, cached in memory
 - Unlimited players — no slot limit
-- Player nickname shown below their avatar
-- Suppresses the default blue "Ви" player indicator — replaced with the custom avatar
-- Real-time marker position sync at 20 TPS
-- Configurable: background circle, background color, rotation, nickname visibility
-- Fully compatible with BetterMap and other map mods (provider key `playerIcons`)
+- Player nickname shown without hover
+- Lower-latency multiplayer marker updates via live movement packet tracking
+- Corrected compass/cursor player-marker rendering behavior
+- Configurable: background circle, background color, rotation, nickname visibility, avatar size
+- Fully compatible with BetterMap by Paralaxe and other map mods
 
 ### Installation
 1. Download the jar from the Files tab
-2. Copy `PlayerAvatarMarker-1.0.0.jar` to `UserData/Saves/<YourWorld>/mods/`
+2. Copy `PlayerAvatarMarker-1.2.0.jar` to `UserData/Saves/<YourWorld>/mods/`
 3. Start the server — no extra flags required
 
 ### Configuration
@@ -141,21 +145,23 @@ Config is auto-generated at:
 ```json
 {
   "enableRotation": false,
-  "enableBackground": false,
+  "enableBackground": true,
   "backgroundColor": "#2D2D2D",
-  "showNickname": true
+  "showNickname": true,
+  "avatarSize": 64
 }
 ```
 
 | Field | Default | Description |
 |---|---|---|
 | `enableRotation` | `false` | Rotate icon to face player direction |
-| `enableBackground` | `false` | Draw filled circle behind the avatar |
+| `enableBackground` | `true` | Draw filled circle behind the avatar |
 | `backgroundColor` | `"#2D2D2D"` | Background color (hex) |
 | `showNickname` | `true` | Show player name below avatar |
+| `avatarSize` | `64` | Output size for generated avatar marker images |
 
 ### Compatibility
-- Works alongside **BetterMap**
+- Works alongside **BetterMap by Paralaxe**
 - Works alongside **BetterPlayerMarkers**
 - Safe with any mod not conflicting on provider key `playerIcons`
 
@@ -167,18 +173,16 @@ Config is auto-generated at:
 ### Upload the file
 
 1. Go to your project → **Files** → **Upload File**
-2. **File:** `PlayerAvatarMarker-1.0.0.jar`
-3. **Display name:** `PlayerAvatarMarker-1.0.0`
+2. **File:** `PlayerAvatarMarker-1.2.0.jar`
+3. **Display name:** `PlayerAvatarMarker-1.2.0`
 4. **Game version:** Hytale (latest)
 5. **Release type:** Release
 6. **Changelog:**
    ```
-   Initial release.
-   - Avatar portraits fetched from hyvatar.io and shown on the world map
-   - Unlimited players, per-player PNG assets
-   - Suppresses default blue player indicator
-   - Real-time 20 TPS position sync
-   - Configurable background, rotation, nickname
+  - Optimization: reduced visible marker lag with live movement packet tracking.
+  - Multiplayer fix: more reliable real-player rendering and movement updates on the map.
+  - Cursor fix: corrected player marker behavior on the compass/cursor overlay.
+  - BetterMap compatibility: improved support for BetterMap by Paralaxe.
    ```
 7. Click **Upload**
 
@@ -192,6 +196,17 @@ When releasing a new version:
 2. Build: `./gradlew clean build`
 3. Create a new GitHub release with the new tag
 4. Upload the new jar to CurseForge
+
+---
+
+## Short CurseForge Changelog
+
+```text
+- Оптимізація: зменшене відставання маркерів завдяки live movement tracking.
+- Фікс мультиплеєру: стабільніше відображення інших гравців на мапі.
+- Фікс відображення на курсорі: виправлена поведінка маркерів на compass/cursor overlay.
+- Сумісність із BetterMap (by Paralaxe): покращена інтеграція та відображення аватарів.
+```
 
 ---
 

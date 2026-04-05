@@ -34,9 +34,10 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Starting v1.1.0");
+        getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Starting v1.2.0");
 
         PlayerAvatarAssetPack.init();
+        PlayerAvatarLiveTracker.register();
         config = PlayerAvatarConfig.load(
                 PlayerAvatarAssetPack.getPackRoot().resolve("playeravatarmarker-config.json"));
 
@@ -79,6 +80,7 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             if (ref == null) return;
             java.util.UUID uuid = ref.getUuid();
             if (uuid == null) return;
+            PlayerAvatarLiveTracker.remove(uuid);
             PlayerAvatarCache.invalidate(uuid);
             PlayerAvatarAssetPack.cleanupAvatar(uuid);
             PlayerAvatarMarkerProvider.removePersistedAvatar(uuid);

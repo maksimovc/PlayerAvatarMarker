@@ -35,15 +35,15 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
         }
 
         PlayerAvatarConfig config = PlayerAvatarMarkerPlugin.getConfig();
-    int avatarSize = PlayerAvatarMarkerSupport.getAvatarSize(config);
-    UUID viewerUuid = viewer != null ? ((CommandSender) viewer).getUuid() : null;
+        int avatarSize = PlayerAvatarMarkerSupport.getAvatarSize(config);
+        UUID viewerUuid = viewer != null ? ((CommandSender) viewer).getUuid() : null;
 
         for (PlayerRef ref : playerRefs) {
             try {
                 UUID playerUuid = ref.getUuid();
                 if (playerUuid == null) continue;
-        boolean isViewer = viewerUuid != null && playerUuid.equals(viewerUuid);
-                Transform t = ref.getTransform();
+                boolean isViewer = viewerUuid != null && playerUuid.equals(viewerUuid);
+                Transform t = PlayerAvatarLiveTracker.resolveTransform(ref);
                 if (t == null) continue;
                 Vector3d position = t.getPosition();
                 if (position == null) continue;
@@ -51,7 +51,7 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
                 if (playerName == null || playerName.isEmpty()) {
                     playerName = playerUuid.toString().substring(0, 8);
                 }
-                Vector3f headRotation = ref.getHeadRotation();
+                Vector3f headRotation = PlayerAvatarLiveTracker.resolveRotation(ref);
                 PlayerAvatarMarkerSupport.AvatarVisual avatarVisual =
                         PlayerAvatarMarkerSupport.resolveAvatarVisual(playerUuid, playerName, avatarSize);
                 Vector3f markerRotation = PlayerAvatarMarkerSupport.resolveMarkerRotation(config, headRotation);

@@ -62,7 +62,7 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                     continue;
                 }
 
-                Transform playerTransform = ref.getTransform();
+                Transform playerTransform = PlayerAvatarLiveTracker.resolveTransform(ref);
                 if (playerTransform == null || playerTransform.getPosition() == null) {
                     continue;
                 }
@@ -88,14 +88,16 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                     markerLabel = playerName + " (" + distance + "m)";
                 }
 
-                Vector3f markerRotation = PlayerAvatarMarkerSupport.resolveMarkerRotation(config, ref.getHeadRotation());
+                Vector3f markerRotation = PlayerAvatarMarkerSupport.resolveMarkerRotation(
+                        config,
+                        PlayerAvatarLiveTracker.resolveRotation(ref));
                 Transform markerTransform = new Transform(playerTransform.getPosition(), markerRotation);
                 PlayerAvatarMarkerSupport.AvatarVisual avatarVisual =
                         PlayerAvatarMarkerSupport.resolveAvatarVisual(playerUuid, playerName, avatarSize);
 
                 MapMarker marker = PlayerAvatarMarkerSupport.createPlainPlayerMarker(
                         MARKER_PREFIX + playerUuid,
-                    playerUuid,
+                        playerUuid,
                         markerLabel,
                         avatarVisual.markerImage(),
                         markerTransform);
@@ -127,9 +129,9 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                 continue;
             }
 
-            Transform transform = ref.getTransform();
-            if (transform != null) {
-                return transform.getPosition();
+            Vector3d position = PlayerAvatarLiveTracker.resolvePosition(ref);
+            if (position != null) {
+                return position;
             }
             break;
         }
