@@ -16,6 +16,7 @@ final class PlayerAvatarConfig {
     boolean enableBackground = true;
     String backgroundColor = "#2D2D2D";
     boolean showNickname = true;
+    int avatarSize = 64;
 
     private PlayerAvatarConfig() {}
 
@@ -32,7 +33,8 @@ final class PlayerAvatarConfig {
             cfg.enableBackground = readBool(json, "enableBackground", cfg.enableBackground);
             cfg.backgroundColor = readString(json, "backgroundColor", cfg.backgroundColor);
             cfg.showNickname = readBool(json, "showNickname", cfg.showNickname);
-            LOGGER.info("[PlayerAvatarMarker] Config loaded: showNick=" + cfg.showNickname);
+            cfg.avatarSize = readInt(json, "avatarSize", cfg.avatarSize);
+            LOGGER.info("[PlayerAvatarMarker] Config loaded: showNick=" + cfg.showNickname + ", avatarSize=" + cfg.avatarSize);
         } catch (IOException e) {
             LOGGER.warning("[PlayerAvatarMarker] Failed to read config, using defaults: " + e.getMessage());
         }
@@ -45,10 +47,11 @@ final class PlayerAvatarConfig {
                   "enableRotation": %s,
                   "enableBackground": %s,
                   "backgroundColor": "%s",
-                  "showNickname": %s
+                  "showNickname": %s,
+                  "avatarSize": %d
                 }
                 """.formatted(cfg.enableRotation, cfg.enableBackground,
-                cfg.backgroundColor, cfg.showNickname);
+                cfg.backgroundColor, cfg.showNickname, cfg.avatarSize);
         try {
             Files.writeString(configPath, json, StandardCharsets.UTF_8);
         } catch (IOException e) {
@@ -66,6 +69,15 @@ final class PlayerAvatarConfig {
         Pattern p = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*\"([^\"]+)\"");
         Matcher m = p.matcher(json);
         return m.find() ? m.group(1) : fallback;
+    }
+
+    private static int readInt(String json, String key, int fallback) {
+        Pattern p = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*(\\d+)");
+        Matcher m = p.matcher(json);
+        if (m.find()) {
+            try { return Integer.parseInt(m.group(1)); } catch (NumberFormatException ignored) {}
+        }
+        return fallback;
     }
 
     int backgroundColorRGB() {

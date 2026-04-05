@@ -13,13 +13,13 @@ cd PlayerAvatarMarker
 
 The output jar is at:
 ```
-build/libs/PlayerAvatarMarker-1.0.0.jar
+build/libs/PlayerAvatarMarker-1.1.0.jar
 ```
 
 Verify it works by copying to your server's `mods/` folder and starting the server.
 The console should show:
 ```
-[PlayerAvatarMarker] Starting v1.0.0
+[PlayerAvatarMarker] Starting v1.1.0
 [PlayerAvatarMarker] Provider registered: <world> (TPS set to 20)
 [PlayerAvatarMarker] Ready.
 ```

@@ -3,9 +3,13 @@ package dev.thenexusgates.playeravatarmarker;
 import com.hypixel.hytale.common.plugin.AuthorInfo;
 import com.hypixel.hytale.common.plugin.PluginManifest;
 import com.hypixel.hytale.common.semver.Semver;
+import com.hypixel.hytale.protocol.packets.setup.RequestCommonAssetsRebuild;
 import com.hypixel.hytale.server.core.asset.AssetModule;
+import com.hypixel.hytale.server.core.asset.common.CommonAsset;
 import com.hypixel.hytale.server.core.asset.common.CommonAssetModule;
 import com.hypixel.hytale.server.core.asset.common.asset.FileCommonAsset;
+import com.hypixel.hytale.server.core.io.PacketHandler;
+import com.hypixel.hytale.server.core.universe.Universe;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -13,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,14 +29,17 @@ final class PlayerAvatarAssetPack {
     private static final String PACK_ID = "thenexusgates:PlayerAvatarMarkerAssets";
     private static final String PACK_GROUP = "thenexusgates";
     private static final String PACK_NAME = "PlayerAvatarMarkerAssets";
-    private static final String PACK_VERSION = "1.0.0";
+    private static final String PACK_VERSION = "1.1.0";
     private static final String TARGET_SERVER_VERSION = "2026.03.26-89796e57b";
+    private static final String FALLBACK_MARKER_IMAGE = "pam-placeholder.png";
+    private static final String MARKER_ASSET_PREFIX = "UI/WorldMap/MapMarkers/";
+    private static final String WORLDMAP_ASSET_PREFIX = "UI/WorldMap/";
 
     private static final String MANIFEST_JSON = """
             {
               "Group": "thenexusgates",
               "Name": "PlayerAvatarMarkerAssets",
-              "Version": "1.0.0",
+              "Version": "1.1.0",
               "Description": "Generated avatar overrides for world map marker icons",
               "Authors": [
                 {
@@ -68,16 +76,8 @@ final class PlayerAvatarAssetPack {
         return "pam-" + playerUuid.toString().replace("-", "") + ".png";
     }
 
-    static void suppressDefaultPlayerMarker() {
-        try {
-            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(
-                    1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-            javax.imageio.ImageIO.write(img, "png", baos);
-            writeAvatar("Player.png", baos.toByteArray());
-        } catch (IOException e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to suppress default player marker: " + e.getMessage());
-        }
+    static String getFallbackImagePath() {
+        return FALLBACK_MARKER_IMAGE;
     }
 
     static void writeAvatar(UUID playerUuid, byte[] pngBytes) {
@@ -96,14 +96,14 @@ final class PlayerAvatarAssetPack {
             Path output = packRoot.resolve("Common/UI/WorldMap/MapMarkers").resolve(slotImage);
             Files.createDirectories(output.getParent());
             Files.write(output, pngBytes);
-            pushAssetToClients(slotImage, pngBytes, output);
+            pushAssetToClients(MARKER_ASSET_PREFIX + slotImage, pngBytes, output);
         } catch (IOException e) {
             LOGGER.warning("[PlayerAvatarMarker] Failed to write avatar asset pack file for "
                     + slotImage + ": " + e.getMessage());
         }
     }
 
-    private static void pushAssetToClients(String fileName, byte[] pngBytes, Path filePath) {
+    private static void pushAssetToClients(String assetName, byte[] pngBytes, Path filePath) {
         try {
             CommonAssetModule cam = CommonAssetModule.get();
             if (cam == null) {
@@ -111,27 +111,33 @@ final class PlayerAvatarAssetPack {
                 return;
             }
 
-            String assetName = "UI/WorldMap/MapMarkers/" + fileName;
             FileCommonAsset asset = new FileCommonAsset(filePath, assetName, pngBytes);
             cam.addCommonAsset(assetName, asset, true);
-            cam.sendAsset(asset, true);
             pushedAssets.put(assetName, asset);
-            LOGGER.info("[PlayerAvatarMarker] Pushed avatar asset to all clients: " + assetName);
+            Universe universe = Universe.get();
+            if (universe != null && universe.getPlayerCount() > 0) {
+                universe.broadcastPacketNoCache(new RequestCommonAssetsRebuild());
+            }
+            LOGGER.info("[PlayerAvatarMarker] Registered avatar asset: " + assetName);
         } catch (Exception e) {
             LOGGER.warning("[PlayerAvatarMarker] Failed to push avatar asset to clients: " + e.getMessage());
         }
     }
 
-    static void sendAllAvatars() {
+    static void sendAvatarsToPlayer(PacketHandler ph) {
+        if (ph == null) return;
         CommonAssetModule cam = CommonAssetModule.get();
         if (cam == null) return;
-        for (FileCommonAsset asset : pushedAssets.values()) {
-            try {
-                cam.sendAsset(asset, true);
-            } catch (Exception e) {
-                LOGGER.warning("[PlayerAvatarMarker] Failed to resend avatar: " + e.getMessage());
-            }
+        List<CommonAsset> assets = new ArrayList<>(pushedAssets.values());
+        if (!assets.isEmpty()) {
+            cam.sendAssetsToPlayer(ph, assets, true);
         }
+    }
+
+    static void cleanupAvatar(UUID uuid) {
+        String imagePath = getImagePath(uuid);
+        String assetName = "UI/WorldMap/MapMarkers/" + imagePath;
+        pushedAssets.remove(assetName);
     }
 
     private static void ensureInitialized() {
@@ -159,6 +165,7 @@ final class PlayerAvatarAssetPack {
                 Files.createDirectories(packRoot);
                 Path manifestPath = packRoot.resolve("manifest.json");
                 Files.writeString(manifestPath, MANIFEST_JSON, StandardCharsets.UTF_8);
+                ensureStaticWorldMapAssets();
                 ensurePackEnabled(modsDirectory.getParent().resolve("config.json"));
 
                 registerPackIfNeeded();
@@ -187,6 +194,36 @@ final class PlayerAvatarAssetPack {
         assetModule.registerPack(PACK_ID, packRoot, buildRuntimeManifest(), true);
         registered = true;
         LOGGER.info("[PlayerAvatarMarker] Registered runtime asset pack: " + PACK_ID);
+    }
+
+    private static void ensureStaticWorldMapAssets() {
+        writeStaticCommonAsset(
+                WORLDMAP_ASSET_PREFIX + "Player.png",
+                packRoot.resolve("Common/UI/WorldMap/Player.png"),
+                PlayerAvatarImageProcessor.createTransparentPng());
+        writeStaticCommonAsset(
+                MARKER_ASSET_PREFIX + "Player.png",
+                packRoot.resolve("Common/UI/WorldMap/MapMarkers/Player.png"),
+                PlayerAvatarImageProcessor.createTransparentPng());
+        writeStaticCommonAsset(
+                MARKER_ASSET_PREFIX + FALLBACK_MARKER_IMAGE,
+                packRoot.resolve("Common/UI/WorldMap/MapMarkers").resolve(FALLBACK_MARKER_IMAGE),
+                PlayerAvatarImageProcessor.createFallbackMarkerPng(64));
+    }
+
+    private static void writeStaticCommonAsset(String assetName, Path output, byte[] pngBytes) {
+        if (pngBytes == null || pngBytes.length == 0) {
+            return;
+        }
+
+        try {
+            Files.createDirectories(output.getParent());
+            Files.write(output, pngBytes);
+            pushAssetToClients(assetName, pngBytes, output);
+        } catch (IOException e) {
+            LOGGER.warning("[PlayerAvatarMarker] Failed to write static world map asset "
+                    + assetName + ": " + e.getMessage());
+        }
     }
 
     private static PluginManifest buildRuntimeManifest() {

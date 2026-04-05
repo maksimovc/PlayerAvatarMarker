@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 
 final class PlayerAvatarCache {
 
-    private static final String HYVATAR_URL = "https://hyvatar.io/render/%s?size=64";
+    private static final String HYVATAR_BASE_URL = "https://hyvatar.io/render/";
 
     private static final Logger LOGGER = Logger.getLogger(PlayerAvatarCache.class.getName());
 
@@ -36,8 +36,10 @@ final class PlayerAvatarCache {
     }
 
     private static CompletableFuture<byte[]> fetchAsync(String username) {
+        PlayerAvatarConfig cfg = PlayerAvatarMarkerPlugin.getConfig();
+        int size = (cfg != null) ? cfg.avatarSize : 64;
         String encoded = URLEncoder.encode(username, StandardCharsets.UTF_8);
-        String url = String.format(HYVATAR_URL, encoded);
+        String url = HYVATAR_BASE_URL + encoded + "?size=" + size;
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
