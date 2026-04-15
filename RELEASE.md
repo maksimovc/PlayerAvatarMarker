@@ -2,7 +2,7 @@
 
 Instructions for publishing **PlayerAvatarMarker** on GitHub and CurseForge.
 
-Current release target: `v1.2.0`
+Current release target: `v1.3.5`
 
 ---
 
@@ -15,13 +15,13 @@ cd PlayerAvatarMarker
 
 The output jar is at:
 ```
-build/libs/PlayerAvatarMarker-1.2.0.jar
+build/libs/PlayerAvatarMarker-1.3.5.jar
 ```
 
 Verify it works by copying to your server's `mods/` folder and starting the server.
 The console should show:
 ```
-[PlayerAvatarMarker] Starting v1.2.0
+[PlayerAvatarMarker] Starting v1.3.5
 [PlayerAvatarMarker] Provider registered: <world>
 [PlayerAvatarMarker] Ready.
 ```
@@ -51,12 +51,12 @@ When a player joins, you should also see:
 ### Create a release
 
 1. Go to **Releases** → **Draft a new release**
-2. **Tag:** `v1.2.0`
-3. **Release title:** `PlayerAvatarMarker v1.2.0`
+2. **Tag:** `v1.3.5`
+3. **Release title:** `PlayerAvatarMarker v1.3.5`
 4. **Description:**
 
 ```markdown
-## PlayerAvatarMarker v1.2.0
+## PlayerAvatarMarker v1.3.5
 
 Shows unique player avatar portraits on the Hytale world map, fetched from [hyvatar.io](https://hyvatar.io).
 
@@ -67,11 +67,17 @@ Shows unique player avatar portraits on the Hytale world map, fetched from [hyva
 - Player nickname shown without hover
 - Improved multiplayer responsiveness using live movement packet tracking
 - BetterMap by Paralaxe compatibility with dedicated player radar integration
-- Duplicate compass/cursor overlay behavior corrected
+- FastMiniMap overlay support when installed
 - Configurable: background, background color, rotation, nickname visibility, avatar size
 
+### Short changelog from 1.3.0
+- Player markers now follow movement much more accurately
+- Fixed cases where avatar markers disappeared or refreshed incorrectly
+- Restored nickname display under avatar markers
+- Improved BetterMap and FastMiniMap compatibility
+
 ### Installation
-1. Copy `PlayerAvatarMarker-1.2.0.jar` to `UserData/Saves/<YourWorld>/mods/`
+1. Copy `PlayerAvatarMarker-1.3.5.jar` to `UserData/Saves/<YourWorld>/mods/`
 2. Start the server — no extra arguments required
 
 ### Configuration
@@ -91,7 +97,7 @@ Config is auto-generated at `mods/PlayerAvatarMarkerAssets/playeravatarmarker-co
 - Java 25
 ```
 
-5. **Attach:** `PlayerAvatarMarker-1.2.0.jar`
+5. **Attach:** `PlayerAvatarMarker-1.3.5.jar`
 6. Click **Publish release**
 
 ---
@@ -129,13 +135,14 @@ A Hytale server mod that shows **unique avatar portraits** for each player on th
 - Unlimited players — no slot limit
 - Player nickname shown without hover
 - Lower-latency multiplayer marker updates via live movement packet tracking
-- Corrected compass/cursor player-marker rendering behavior
+- Fixed large-map marker refresh and nickname regressions from the early 1.3.x builds
 - Configurable: background circle, background color, rotation, nickname visibility, avatar size
 - Fully compatible with BetterMap by Paralaxe and other map mods
+- Adds a minimap overlay when FastMiniMap is installed
 
 ### Installation
 1. Download the jar from the Files tab
-2. Copy `PlayerAvatarMarker-1.2.0.jar` to `UserData/Saves/<YourWorld>/mods/`
+2. Copy `PlayerAvatarMarker-1.3.5.jar` to `UserData/Saves/<YourWorld>/mods/`
 3. Start the server — no extra flags required
 
 ### Configuration
@@ -173,16 +180,16 @@ Config is auto-generated at:
 ### Upload the file
 
 1. Go to your project → **Files** → **Upload File**
-2. **File:** `PlayerAvatarMarker-1.2.0.jar`
-3. **Display name:** `PlayerAvatarMarker-1.2.0`
+2. **File:** `PlayerAvatarMarker-1.3.5.jar`
+3. **Display name:** `PlayerAvatarMarker-1.3.5`
 4. **Game version:** Hytale (latest)
 5. **Release type:** Release
 6. **Changelog:**
    ```
-  - Optimization: reduced visible marker lag with live movement packet tracking.
-  - Multiplayer fix: more reliable real-player rendering and movement updates on the map.
-  - Cursor fix: corrected player marker behavior on the compass/cursor overlay.
-  - BetterMap compatibility: improved support for BetterMap by Paralaxe.
+  - Player markers now follow movement much more accurately.
+  - Fixed cases where avatar markers disappeared or refreshed incorrectly.
+  - Restored nickname display under avatar markers.
+  - Improved BetterMap and FastMiniMap compatibility.
    ```
 7. Click **Upload**
 
@@ -202,10 +209,10 @@ When releasing a new version:
 ## Short CurseForge Changelog
 
 ```text
-- Оптимізація: зменшене відставання маркерів завдяки live movement tracking.
-- Фікс мультиплеєру: стабільніше відображення інших гравців на мапі.
-- Фікс відображення на курсорі: виправлена поведінка маркерів на compass/cursor overlay.
-- Сумісність із BetterMap (by Paralaxe): покращена інтеграція та відображення аватарів.
+- Маркери гравців на великій мапі тепер рухаються значно точніше.
+- Виправлені випадки, коли аватарки зникали або оновлювались неправильно.
+- Повернено показ ніків під аватарками.
+- Покращена сумісність із BetterMap і FastMiniMap.
 ```
 
 ---

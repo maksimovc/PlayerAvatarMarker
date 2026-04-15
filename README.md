@@ -1,25 +1,31 @@
 # PlayerAvatarMarker
 
-A Hytale server mod that shows unique avatar portraits for each player on the world map, with BetterMap compatibility and lower-latency multiplayer tracking.
+A Hytale server mod that shows a unique avatar portrait for each player on the large world map and, when available, on the minimap through FastMiniMap integration.
 
-Each player gets their own dedicated avatar PNG file (`pam-<uuid>.png`) — unlimited players supported.
-
----
+Each player gets their own generated avatar PNG file (`pam-<uuid>.png`) so the mod supports unlimited players.
 
 ## Features
 
-- Shows circular avatar portrait for each online player on the world map
-- Avatars fetched from hyvatar.io on first appearance, cached in memory
-- Unlimited players — no slot limit
-- Shows player usernames without needing hover
-- Fixes player marker rendering for multiplayer map usage and reduces visible position lag by tracking live `ClientMovement` updates
-- Suppresses duplicate default player overlays and keeps the local marker off the compass unless the full map is open
-- Compatible with BetterMap by Paralaxe through a dedicated `BetterMapPlayerRadar` provider and player-style markers
+- Circular avatar portrait for each online player on the large world map
+- Avatars fetched from hyvatar.io and cached in memory
+- Unlimited players supported
+- Player nickname shown under the avatar marker
+- Lower-latency position updates through live movement tracking
+- Suppresses the duplicate vanilla player marker
+- BetterMap compatibility through a dedicated radar provider
+- FastMiniMap overlay support when FastMiniMap is installed
 - Configurable: nickname visibility, avatar size, rotation, background
+
+## Installation
+
+1. Copy `PlayerAvatarMarker-1.3.5.jar` to `UserData/Saves/<YourWorld>/mods/`
+2. Start the server
+
+This is a regular Hytale mod, so it belongs in the `mods/` folder.
 
 ## Configuration
 
-Config file is generated automatically at:
+Config file:
 `UserData/Saves/<world>/mods/PlayerAvatarMarkerAssets/playeravatarmarker-config.json`
 
 ```json
@@ -34,45 +40,39 @@ Config file is generated automatically at:
 
 | Field | Default | Description |
 |---|---|---|
-| `enableRotation` | `false` | Rotate avatar icon to face player direction |
-| `enableBackground` | `true` | Draw filled circle behind the avatar |
-| `backgroundColor` | `"#2D2D2D"` | Background circle color (hex) |
-| `showNickname` | `true` | Show player name below avatar |
+| `enableRotation` | `false` | Rotate the avatar marker to face player direction |
+| `enableBackground` | `true` | Draw a filled circle behind the avatar |
+| `backgroundColor` | `"#2D2D2D"` | Background circle color |
+| `showNickname` | `true` | Show player name under the avatar |
 | `avatarSize` | `64` | Output size for generated avatar marker images |
 
-## BetterMap
+## Compatibility
 
-- BetterMap compatibility is enabled automatically when BetterMap by Paralaxe is installed.
-- The mod mirrors BetterMap radar distance/privacy handling and uses a dedicated provider key so it does not overwrite unrelated map providers.
-- Player labels remain visible and avatar markers use fresher multiplayer movement data than the old `PlayerRef.getTransform()` path.
-
-## Installation
-
-1. Copy `PlayerAvatarMarker-1.2.0.jar` to  
-   `UserData/Saves/<YourWorld>/mods/`
-2. Start the server — no extra arguments required.
-
-> **Note:** This is a regular Hytale **mod** (not an early plugin). It goes in the `mods/` folder.
+- Works standalone
+- Works with BetterMap by Paralaxe
+- Adds a minimap overlay when FastMiniMap is installed
+- Safe with mods that do not replace the same world-map player provider
 
 ## Building from source
 
-```bash
+```bat
 cd PlayerAvatarMarker
-./gradlew clean build
+gradlew.bat build
 ```
 
-Output: `build/libs/PlayerAvatarMarker-1.2.0.jar`
+Output: `build/libs/PlayerAvatarMarker-1.3.5.jar`
 
 ## Requirements
 
 - Hytale Server `2026.03.26-89796e57b` or newer
 - Java 25
 
-## Compatibility
+## Short Changelog: 1.3.0 -> 1.3.5
 
-- Works alongside **BetterMap by Paralaxe**
-- Works alongside **BetterPlayerMarkers**
-- Safe with any mod that does not conflict on key `playerIcons`
+- Player markers on the large map now follow movement much more accurately
+- Fixed cases where avatar markers disappeared or refreshed incorrectly
+- Restored nickname display under avatar markers
+- Improved BetterMap and FastMiniMap compatibility
 
 ## License
 

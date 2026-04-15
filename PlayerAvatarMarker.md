@@ -16,7 +16,7 @@ Shows each online player's avatar portrait on the world map (M key) and optional
 
 ## Installation
 
-1. Copy `PlayerAvatarMarker-1.3.0.jar` to `UserData/Saves/<World>/mods/`
+1. Copy `PlayerAvatarMarker-1.3.5.jar` to `UserData/Saves/<World>/mods/`
 2. Start the server — config is auto-generated on first run
 
 ## Configuration
@@ -41,6 +41,13 @@ PlayerAvatarMarker has **no commands or permissions**. Avatars are loaded automa
 - Gains **minimap player overlay** with FastMiniMap installed
 - Fully compatible with **BetterMap by Paralaxe**
 - Compatible with **MapTrail by jadedbay**
+
+## Short Changelog: 1.3.0 -> 1.3.5
+
+- Player markers on the large map now follow movement much more accurately
+- Fixed cases where avatar markers disappeared or refreshed incorrectly
+- Restored nickname display under avatar markers
+- Improved BetterMap and FastMiniMap compatibility
 
 ## Recommended mods
 

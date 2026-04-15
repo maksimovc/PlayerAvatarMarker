@@ -37,7 +37,7 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Starting v1.3.0");
+        getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Starting v1.3.5");
 
         PlayerAvatarAssetPack.init();
         PlayerAvatarLiveTracker.register();
