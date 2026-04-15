@@ -1,8 +1,8 @@
 # PlayerAvatarMarker
 
-A Hytale server mod that shows a unique avatar portrait for each player on the large world map and, when available, on the minimap through FastMiniMap integration.
+A Hytale server mod that shows a unique avatar portrait for each player on the large world map and, when available, on the minimap and compass through FastMiniMap and BetterMap integration.
 
-Each player gets their own generated avatar PNG file (`pam-<uuid>.png`) so the mod supports unlimited players.
+Version 2.0.0 adds a built-in control UI so each player can choose where avatar markers appear.
 
 ## Features
 
@@ -14,11 +14,13 @@ Each player gets their own generated avatar PNG file (`pam-<uuid>.png`) so the m
 - Suppresses the duplicate vanilla player marker
 - BetterMap compatibility through a dedicated radar provider
 - FastMiniMap overlay support when FastMiniMap is installed
+- Built-in `/playeravatar` UI with per-player map, minimap, and compass toggles
+- Online player list with avatar preview and nickname inside the UI
 - Configurable: nickname visibility, avatar size, rotation, background
 
 ## Installation
 
-1. Copy `PlayerAvatarMarker-1.3.5.jar` to `UserData/Saves/<YourWorld>/mods/`
+1. Copy `PlayerAvatarMarker-2.0.0.jar` to `UserData/Saves/<YourWorld>/mods/`
 2. Start the server
 
 This is a regular Hytale mod, so it belongs in the `mods/` folder.
@@ -60,19 +62,29 @@ cd PlayerAvatarMarker
 gradlew.bat build
 ```
 
-Output: `build/libs/PlayerAvatarMarker-1.3.5.jar`
+Output: `build/libs/PlayerAvatarMarker-2.0.0.jar`
 
 ## Requirements
 
 - Hytale Server `2026.03.26-89796e57b` or newer
 - Java 25
 
-## Short Changelog: 1.3.0 -> 1.3.5
+## Commands & Permissions
 
-- Player markers on the large map now follow movement much more accurately
-- Fixed cases where avatar markers disappeared or refreshed incorrectly
-- Restored nickname display under avatar markers
-- Improved BetterMap and FastMiniMap compatibility
+- Command: `/playeravatar`
+- Aliases: `/pam`, `/avatarmarker`
+- Open UI permission: `playeravatarmarker.use`
+- Map toggle permission: `playeravatarmarker.settings.map`
+- Minimap toggle permission: `playeravatarmarker.settings.minimap`
+- Compass toggle permission: `playeravatarmarker.settings.compass`
+- Admin bypass: `playeravatarmarker.admin`
+
+## 2.0.0 Highlights
+
+- Added a custom in-game control UI for PlayerAvatarMarker
+- Added per-player visibility toggles for the large map, FastMiniMap, and BetterMap compass
+- Added an online players panel with avatar preview and nickname list
+- Enabled packaged UI assets directly from the mod asset pack
 
 ## License
 

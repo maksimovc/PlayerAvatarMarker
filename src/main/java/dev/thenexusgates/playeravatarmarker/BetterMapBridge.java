@@ -129,7 +129,7 @@ final class BetterMapBridge {
         } catch (Exception e) {
             if (!unavailableLogged) {
                 unavailableLogged = true;
-                LOGGER.info("[PlayerAvatarMarker] BetterMap 1.3.5 compatibility bridge unavailable: " + e.getMessage());
+                LOGGER.info("[PlayerAvatarMarker] BetterMap 2.0.0 compatibility bridge unavailable: " + e.getMessage());
             }
             return BridgeState.unavailable();
         }

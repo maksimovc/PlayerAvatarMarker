@@ -37,6 +37,10 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
         PlayerAvatarConfig config = PlayerAvatarMarkerPlugin.getConfig();
         int avatarSize = PlayerAvatarMarkerSupport.getAvatarSize(config);
         UUID viewerUuid = viewer != null ? ((CommandSender) viewer).getUuid() : null;
+        PlayerAvatarMarkerPlugin plugin = PlayerAvatarMarkerPlugin.getInstance();
+        if (plugin != null && !plugin.resolvePlayerSettings(viewerUuid).mapEnabled) {
+            return;
+        }
 
         for (PlayerRef ref : playerRefs) {
             try {

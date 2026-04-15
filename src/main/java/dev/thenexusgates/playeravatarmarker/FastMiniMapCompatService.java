@@ -63,6 +63,11 @@ final class FastMiniMapCompatService {
             String worldName, UUID viewerUuid,
             double viewerX, double viewerZ, int radiusBlocks) {
 
+        PlayerAvatarMarkerPlugin plugin = PlayerAvatarMarkerPlugin.getInstance();
+        if (plugin != null && !plugin.resolvePlayerSettings(viewerUuid).minimapEnabled) {
+            return List.of();
+        }
+
         Universe universe = Universe.get();
         if (universe == null) {
             return List.of();

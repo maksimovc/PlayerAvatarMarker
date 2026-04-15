@@ -33,12 +33,17 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
             return;
         }
 
+        UUID viewerUuid = ((CommandSender) viewer).getUuid();
+        PlayerAvatarMarkerPlugin plugin = PlayerAvatarMarkerPlugin.getInstance();
+        if (plugin != null && !plugin.resolvePlayerSettings(viewerUuid).compassEnabled) {
+            return;
+        }
+
         Collection<PlayerRef> playerRefs = world.getPlayerRefs();
         if (playerRefs == null || playerRefs.isEmpty()) {
             return;
         }
 
-        UUID viewerUuid = ((CommandSender) viewer).getUuid();
         Vector3d viewerPosition = findViewerPosition(playerRefs, viewerUuid);
         long maxDistanceSquared = maxDistanceSquared(viewerSettings.radarRange());
 

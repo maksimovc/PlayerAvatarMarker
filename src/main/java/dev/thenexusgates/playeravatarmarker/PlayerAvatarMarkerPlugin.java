@@ -3,24 +3,37 @@ package dev.thenexusgates.playeravatarmarker;
 import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 
 public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     static final String PROVIDER_KEY = "playerIcons";
+    private static final String VERSION = "2.0.0";
 
     private static PlayerAvatarMarkerPlugin instance;
     private static PlayerAvatarConfig config;
+    private final ConcurrentMap<UUID, PlayerRef> activePlayers = new ConcurrentHashMap<>();
     private FastMiniMapCompatService fastMiniMapCompatService;
+    private PlayerAvatarPlayerSettingsStore playerSettingsStore;
+    private PlayerAvatarUiSounds uiSounds;
+    private Path dataDirectory;
 
     public static PlayerAvatarMarkerPlugin getInstance() {
         return instance;
@@ -30,6 +43,14 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
         return config;
     }
 
+    public Collection<PlayerRef> getActivePlayers() {
+        return activePlayers.values();
+    }
+
+    public PlayerAvatarUiSounds getUiSounds() {
+        return uiSounds;
+    }
+
     public PlayerAvatarMarkerPlugin(JavaPluginInit init) {
         super(init);
         instance = this;
@@ -37,12 +58,16 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Starting v1.3.5");
+        getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Starting v" + VERSION);
 
         PlayerAvatarAssetPack.init();
         PlayerAvatarLiveTracker.register();
+        dataDirectory = PlayerAvatarAssetPack.getPackRoot();
         config = PlayerAvatarConfig.load(
-                PlayerAvatarAssetPack.getPackRoot().resolve("playeravatarmarker-config.json"));
+                dataDirectory.resolve("playeravatarmarker-config.json"));
+        playerSettingsStore = new PlayerAvatarPlayerSettingsStore(dataDirectory);
+        uiSounds = new PlayerAvatarUiSounds();
+        getCommandRegistry().registerCommand(new PlayerAvatarControlCommand(this));
 
         Universe universe = Universe.get();
         if (universe != null) {
@@ -70,6 +95,7 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             }
             @SuppressWarnings("deprecation")
             PlayerRef ref = player.getPlayerRef();
+            registerActivePlayer(ref);
             // Do NOT call sendAvatarsToPlayer here: the player is already in the Playing
             // stage, and sending assets via CommonAssetModule at that point triggers a
             // WorldLoadProgress packet which the client rejects, causing a disconnect.
@@ -84,6 +110,10 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             if (ref == null) return;
             java.util.UUID uuid = ref.getUuid();
             if (uuid == null) return;
+            activePlayers.remove(uuid);
+            if (playerSettingsStore != null) {
+                playerSettingsStore.unload(uuid);
+            }
             PlayerAvatarLiveTracker.remove(uuid);
             PlayerAvatarCache.invalidate(uuid);
             PlayerAvatarAssetPack.cleanupAvatar(uuid);
@@ -154,6 +184,59 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
     protected void shutdown() {
         if (fastMiniMapCompatService != null) {
             fastMiniMapCompatService.unregister();
+        }
+        activePlayers.clear();
+    }
+
+    public PlayerAvatarPlayerSettings resolvePlayerSettings(PlayerRef playerRef) {
+        return resolvePlayerSettings(playerRef != null ? playerRef.getUuid() : null);
+    }
+
+    public PlayerAvatarPlayerSettings resolvePlayerSettings(UUID playerUuid) {
+        if (playerSettingsStore == null) {
+            return new PlayerAvatarPlayerSettings();
+        }
+        return playerSettingsStore.resolve(playerUuid);
+    }
+
+    public void applyPlayerSettings(PlayerRef playerRef, PlayerAvatarPlayerSettings settings) {
+        if (playerRef == null || settings == null || playerSettingsStore == null) {
+            return;
+        }
+        UUID playerUuid = playerRef.getUuid();
+        if (playerUuid == null) {
+            return;
+        }
+        playerSettingsStore.save(playerUuid, settings);
+    }
+
+    public void openControlPage(Store<EntityStore> store, Ref<EntityStore> entityRef, PlayerRef playerRef) {
+        if (store == null || entityRef == null || playerRef == null) {
+            return;
+        }
+
+        Player player = store.getComponent(entityRef, Player.getComponentType());
+        if (player == null) {
+            return;
+        }
+
+        player.getPageManager().openCustomPage(entityRef, store, new PlayerAvatarControlPage(playerRef, this));
+        if (uiSounds != null) {
+            uiSounds.play(playerRef, PlayerAvatarUiSounds.Cue.NAVIGATE);
+        }
+    }
+
+    private void registerActivePlayer(PlayerRef ref) {
+        if (ref == null) {
+            return;
+        }
+        UUID uuid = ref.getUuid();
+        if (uuid == null) {
+            return;
+        }
+        activePlayers.put(uuid, ref);
+        if (playerSettingsStore != null) {
+            playerSettingsStore.preload(uuid);
         }
     }
 

@@ -1,8 +1,8 @@
 {
   "Group": "thenexusgates",
   "Name": "PlayerAvatarMarker",
-  "Version": "1.3.5",
-  "Description": "Shows unique avatar icons for each player on the world map (M key), using hyvatar.io portraits.",
+  "Version": "2.0.0",
+  "Description": "Shows player avatar markers on the large map, minimap, and compass, with a built-in control UI.",
   "Authors": [
     {
       "Name": "maksimovc"
@@ -11,6 +11,6 @@
   "Website": "https://github.com/thenexusgates",
   "ServerVersion": "2026.03.26-89796e57b",
   "DisabledByDefault": false,
-  "IncludesAssetPack": false,
+  "IncludesAssetPack": true,
   "Main": "dev.thenexusgates.playeravatarmarker.PlayerAvatarMarkerPlugin"
 }

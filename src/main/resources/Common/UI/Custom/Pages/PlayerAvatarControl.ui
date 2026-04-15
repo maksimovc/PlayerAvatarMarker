@@ -1,0 +1,194 @@
+$C = "../Common.ui";
+
+SceneBlur {}
+
+Group {
+  Background: #000000(0.34);
+}
+
+Group {
+  Anchor: (Left: 0, Top: 0, Right: 0, Bottom: 0);
+  LayoutMode: Center;
+
+  Group {
+    Anchor: (Width: 1220, Height: 760);
+
+    Group #TopBar {
+      Anchor: (Left: 24, Top: 18, Right: 24, Height: 66);
+      Background: PatchStyle(TexturePath: "ObjectivePanelContainer.png", Border: 15);
+
+      Label #Title {
+        Anchor: (Left: 18, Top: 18, Width: 430, Height: 30);
+        Style: (FontSize: 20, TextColor: #e0c27a, RenderBold: true, VerticalAlignment: Center);
+        Text: "Player Avatar Control";
+      }
+
+      Button #RefreshButton {
+        Anchor: (Top: 14, Right: 152, Width: 120, Height: 38);
+        Background: #343850;
+        OutlineColor: #c7b37b;
+        OutlineSize: 1;
+        Label #RefreshButtonLabel {
+          Anchor: (Full: 0);
+          Text: "Refresh";
+          Style: (FontSize: 14, TextColor: #f1f7fa, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+
+      Button #CloseButton {
+        Anchor: (Top: 14, Right: 24, Width: 112, Height: 38);
+        Background: #314c59;
+        OutlineColor: #85b6c5;
+        OutlineSize: 1;
+        Label #CloseButtonLabel {
+          Anchor: (Full: 0);
+          Text: "Close";
+          Style: (FontSize: 14, TextColor: #f3f8fb, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+    }
+
+    Group #SettingsCard {
+      Anchor: (Left: 24, Top: 108, Width: 322, Bottom: 24);
+      Background: PatchStyle(TexturePath: "ObjectivePanelContainer.png", Border: 15);
+
+      Label #SettingsTitle {
+        Anchor: (Left: 18, Top: 18, Right: 18, Height: 18);
+        Text: "Surface Settings";
+        Style: (FontSize: 15, TextColor: #e7c980, RenderBold: true);
+      }
+
+      Group {
+        Anchor: (Left: 18, Top: 54, Right: 18, Height: 108);
+        Background: #101922;
+        OutlineColor: #456878;
+        OutlineSize: 1;
+
+        Label #MapLabel {
+          Anchor: (Left: 14, Top: 12, Right: 150, Height: 22);
+          Text: "Large Map";
+          Style: (FontSize: 14, TextColor: #dfeaf0, RenderBold: true, VerticalAlignment: Center);
+        }
+
+        Label #MapHint {
+          Anchor: (Left: 14, Top: 40, Right: 14, Height: 34);
+          Text: "Show player avatars on the M map.";
+          Style: (FontSize: 11, TextColor: #8f96ab, VerticalAlignment: Center);
+        }
+
+        Button #MapToggleButton {
+          Anchor: (Left: 14, Right: 14, Bottom: 12, Height: 34);
+          Background: #3f6b73;
+          OutlineColor: #92bfcd;
+          OutlineSize: 1;
+          Label #MapToggleButtonLabel {
+            Anchor: (Full: 0);
+            Text: "Map: On";
+            Style: (FontSize: 13, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+      }
+
+      Group {
+        Anchor: (Left: 18, Top: 176, Right: 18, Height: 108);
+        Background: #101922;
+        OutlineColor: #456878;
+        OutlineSize: 1;
+
+        Label #MinimapLabel {
+          Anchor: (Left: 14, Top: 12, Right: 150, Height: 22);
+          Text: "Minimap";
+          Style: (FontSize: 14, TextColor: #dfeaf0, RenderBold: true, VerticalAlignment: Center);
+        }
+
+        Label #MinimapHint {
+          Anchor: (Left: 14, Top: 40, Right: 14, Height: 34);
+          Text: "Show player avatars in FastMiniMap.";
+          Style: (FontSize: 11, TextColor: #8f96ab, VerticalAlignment: Center);
+        }
+
+        Button #MinimapToggleButton {
+          Anchor: (Left: 14, Right: 14, Bottom: 12, Height: 34);
+          Background: #3f6b73;
+          OutlineColor: #92bfcd;
+          OutlineSize: 1;
+          Label #MinimapToggleButtonLabel {
+            Anchor: (Full: 0);
+            Text: "Minimap: On";
+            Style: (FontSize: 13, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+      }
+
+      Group {
+        Anchor: (Left: 18, Top: 298, Right: 18, Height: 108);
+        Background: #101922;
+        OutlineColor: #456878;
+        OutlineSize: 1;
+
+        Label #CompassLabel {
+          Anchor: (Left: 14, Top: 12, Right: 150, Height: 22);
+          Text: "Compass / BetterMap";
+          Style: (FontSize: 14, TextColor: #dfeaf0, RenderBold: true, VerticalAlignment: Center);
+        }
+
+        Label #CompassHint {
+          Anchor: (Left: 14, Top: 40, Right: 14, Height: 34);
+          Text: "Show player avatars in the compass radar.";
+          Style: (FontSize: 11, TextColor: #8f96ab, VerticalAlignment: Center);
+        }
+
+        Button #CompassToggleButton {
+          Anchor: (Left: 14, Right: 14, Bottom: 12, Height: 34);
+          Background: #3f6b73;
+          OutlineColor: #92bfcd;
+          OutlineSize: 1;
+          Label #CompassToggleButtonLabel {
+            Anchor: (Full: 0);
+            Text: "Compass: On";
+            Style: (FontSize: 13, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+      }
+    }
+
+    Group #PlayersCard {
+      Anchor: (Left: 370, Top: 108, Right: 24, Bottom: 24);
+      Background: PatchStyle(TexturePath: "ObjectivePanelContainer.png", Border: 15);
+
+      Label #PlayersTitle {
+        Anchor: (Left: 18, Top: 18, Width: 260, Height: 18);
+        Text: "Online Players";
+        Style: (FontSize: 15, TextColor: #e7c980, RenderBold: true);
+      }
+
+      Label #PlayersCount {
+        Anchor: (Top: 18, Right: 18, Width: 160, Height: 18);
+        Text: "0 online";
+        Style: (FontSize: 12, TextColor: #9dc4d0, RenderBold: true, HorizontalAlignment: Right);
+      }
+
+      Group #RowsCard {
+        Anchor: (Left: 12, Top: 52, Right: 12, Bottom: 12);
+        Padding: (Top: 10, Bottom: 10, Left: 10, Right: 10);
+
+        Group #RowsScroll {
+          Anchor: (Full: 0);
+          LayoutMode: TopScrolling;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+
+          Group #RowGroup {
+            LayoutMode: Top;
+          }
+        }
+
+        Label #EmptyState {
+          Anchor: (Top: 22, Left: 16, Right: 16, Height: 22);
+          Style: (FontSize: 13, TextColor: #8f96ab, HorizontalAlignment: Center);
+          Text: "No players are currently online.";
+          Visible: false;
+        }
+      }
+    }
+  }
+}

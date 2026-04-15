@@ -1,6 +1,6 @@
 # PlayerAvatarMarker
 
-Shows each online player's avatar portrait on the world map (M key) and optionally on the minimap when [FastMiniMap](https://www.curseforge.com/hytale/mods/fast-mini-map) is installed. Avatars are fetched from [hyvatar.io](https://hyvatar.io/).
+Shows each online player's avatar portrait on the world map (M key) and optionally on the minimap or compass when [FastMiniMap](https://www.curseforge.com/hytale/mods/fast-mini-map) or BetterMap are installed. Avatars are fetched from [hyvatar.io](https://hyvatar.io/).
 
 ## Features
 
@@ -13,11 +13,8 @@ Shows each online player's avatar portrait on the world map (M key) and optional
 - Configurable: background circle, background color, nickname visibility, avatar size
 - **Minimap overlay** — avatars + nicknames appear on the minimap when FastMiniMap is installed
 - Compatible with BetterMap by Paralaxe (respects radar range and visibility settings)
-
-## Installation
-
-1. Copy `PlayerAvatarMarker-1.3.5.jar` to `UserData/Saves/<World>/mods/`
-2. Start the server — config is auto-generated on first run
+- **Built-in control UI** — open `/playeravatar` to manage map, minimap, and compass visibility per player
+- **Online players panel** — see all online players with avatar preview and nickname in one page
 
 ## Configuration
 
@@ -33,7 +30,13 @@ Config path: `UserData/Saves/<World>/mods/PlayerAvatarMarkerAssets/playeravatarm
 
 ## Commands & Permissions
 
-PlayerAvatarMarker has **no commands or permissions**. Avatars are loaded automatically for all online players. All settings are managed via the config file.
+- Command: `/playeravatar`
+- Aliases: `/pam`, `/avatarmarker`
+- Open UI permission: `playeravatarmarker.use`
+- Map toggle permission: `playeravatarmarker.settings.map`
+- Minimap toggle permission: `playeravatarmarker.settings.minimap`
+- Compass toggle permission: `playeravatarmarker.settings.compass`
+- Admin bypass: `playeravatarmarker.admin`
 
 ## Compatibility
 
@@ -41,13 +44,6 @@ PlayerAvatarMarker has **no commands or permissions**. Avatars are loaded automa
 - Gains **minimap player overlay** with FastMiniMap installed
 - Fully compatible with **BetterMap by Paralaxe**
 - Compatible with **MapTrail by jadedbay**
-
-## Short Changelog: 1.3.0 -> 1.3.5
-
-- Player markers on the large map now follow movement much more accurately
-- Fixed cases where avatar markers disappeared or refreshed incorrectly
-- Restored nickname display under avatar markers
-- Improved BetterMap and FastMiniMap compatibility
 
 ## Recommended mods
 

@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dev.thenexusgates"
-version = "1.3.5"
+version = "2.0.0"
 
 repositories {
     mavenCentral()
