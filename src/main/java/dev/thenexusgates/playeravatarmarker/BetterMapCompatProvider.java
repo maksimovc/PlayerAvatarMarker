@@ -19,7 +19,6 @@ import java.util.logging.Logger;
 final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
 
     static final String PROVIDER_KEY = "BetterMapPlayerRadar";
-    private static final String MARKER_PREFIX = "PlayerRadar-";
 
     private static final Logger LOGGER = Logger.getLogger(BetterMapCompatProvider.class.getName());
 
@@ -96,8 +95,12 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                         PlayerAvatarMarkerSupport.resolveAvatarVisual(playerUuid, playerName, avatarSize);
 
                 MapMarker marker = PlayerAvatarMarkerSupport.createPlainPlayerMarker(
-                        MARKER_PREFIX + playerUuid,
+                    PlayerAvatarMarkerSupport.buildDynamicMarkerId(
+                        PlayerAvatarMarkerSupport.BETTER_MAP_MARKER_PREFIX,
                         playerUuid,
+                        avatarVisual.markerVariant(),
+                        markerTransform),
+                    playerUuid,
                         markerLabel,
                         avatarVisual.markerImage(),
                         markerTransform);

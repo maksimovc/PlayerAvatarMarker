@@ -61,7 +61,11 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
                 }
 
                 MapMarker marker = PlayerAvatarMarkerSupport.createNamedPlayerMarker(
-                        PlayerAvatarMarkerSupport.buildMarkerId(playerUuid, avatarVisual.markerVariant()),
+                    PlayerAvatarMarkerSupport.buildDynamicMarkerId(
+                        PlayerAvatarMarkerSupport.MARKER_PREFIX,
+                        playerUuid,
+                        avatarVisual.markerVariant(),
+                        transform),
                         playerUuid,
                         config == null || config.showNickname ? playerName : null,
                         avatarVisual.markerImage(),

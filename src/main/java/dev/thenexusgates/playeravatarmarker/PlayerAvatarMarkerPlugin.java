@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 
 public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
@@ -19,6 +20,8 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     private static PlayerAvatarMarkerPlugin instance;
     private static PlayerAvatarConfig config;
+    private FastMiniMapCompatService fastMiniMapCompatService;
+
     public static PlayerAvatarMarkerPlugin getInstance() {
         return instance;
     }
@@ -34,7 +37,7 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Starting v1.2.0");
+        getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Starting v1.3.0");
 
         PlayerAvatarAssetPack.init();
         PlayerAvatarLiveTracker.register();
@@ -72,6 +75,7 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             // WorldLoadProgress packet which the client rejects, causing a disconnect.
             // Assets registered via addCommonAsset are automatically delivered during
             // this player's SettingUp phase before PlayerReadyEvent fires.
+            PlayerAvatarMarkerSupport.ensureRenderablePlayerModel(ref);
             warmAvatarForPlayer(ref);
         });
 
@@ -84,9 +88,17 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             PlayerAvatarCache.invalidate(uuid);
             PlayerAvatarAssetPack.cleanupAvatar(uuid);
             PlayerAvatarMarkerProvider.removePersistedAvatar(uuid);
+            if (fastMiniMapCompatService != null) {
+                fastMiniMapCompatService.invalidatePlayer(uuid);
+            }
         });
 
         getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Ready.");
+
+        if (FastMiniMapCompat.isAvailable()) {
+            fastMiniMapCompatService = new FastMiniMapCompatService();
+            fastMiniMapCompatService.register();
+        }
     }
 
     private void registerProvider(World world) {
@@ -136,6 +148,13 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
         return provider != null
                 && "com.hypixel.hytale.server.core.universe.world.worldmap.markers.providers.OtherPlayersMarkerProvider"
                 .equals(provider.getClass().getName());
+    }
+
+    @Override
+    protected void shutdown() {
+        if (fastMiniMapCompatService != null) {
+            fastMiniMapCompatService.unregister();
+        }
     }
 
     private void warmAvatarForPlayer(PlayerRef ref) {

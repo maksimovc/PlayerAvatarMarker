@@ -4,7 +4,6 @@ import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.Direction;
-import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.packets.player.ClientMovement;
 import com.hypixel.hytale.server.core.io.adapter.PacketAdapters;
 import com.hypixel.hytale.server.core.io.adapter.PlayerPacketWatcher;
@@ -37,16 +36,20 @@ final class PlayerAvatarLiveTracker {
                 return;
             }
 
-            Vector3d position = toVector(movement.absolutePosition);
+            // Track only rotation from ClientMovement; position is resolved
+            // from ref.getTransform() (server-authoritative) to avoid stale snapshots.
+            // The client frequently sends rotation-only packets where absolutePosition
+            // is null, which left the cached position stale and caused MapMarkerTracker
+            // to suppress UpdateWorldMap delivery (no apparent change detected).
             Vector3f lookRotation = toRotation(movement.lookOrientation);
             Vector3f bodyRotation = toRotation(movement.bodyOrientation);
             Vector3f rotation = lookRotation != null ? lookRotation : bodyRotation;
 
-            if (position == null && rotation == null) {
+            if (rotation == null) {
                 return;
             }
 
-            SNAPSHOTS.compute(playerUuid, (ignored, existing) -> merge(existing, position, rotation));
+            SNAPSHOTS.compute(playerUuid, (ignored, existing) -> merge(existing, rotation));
         });
     }
 
@@ -61,11 +64,9 @@ final class PlayerAvatarLiveTracker {
             return null;
         }
 
-        LiveSnapshot snapshot = snapshot(ref.getUuid());
-        if (snapshot != null && snapshot.position() != null) {
-            return new Vector3d(snapshot.position());
-        }
-
+        // Always use the server-authoritative transform. Caching absolutePosition from
+        // ClientMovement packets caused lag: rotation-only packets left the snapshot
+        // stale, so MapMarkerTracker saw no position delta and skipped UpdateWorldMap.
         Transform transform = ref.getTransform();
         if (transform == null || transform.getPosition() == null) {
             return null;
@@ -102,18 +103,11 @@ final class PlayerAvatarLiveTracker {
         return playerUuid != null ? SNAPSHOTS.get(playerUuid) : null;
     }
 
-    private static LiveSnapshot merge(LiveSnapshot existing, Vector3d position, Vector3f rotation) {
-        Vector3d mergedPosition = position != null
-                ? position
-                : existing != null && existing.position() != null ? new Vector3d(existing.position()) : null;
+    private static LiveSnapshot merge(LiveSnapshot existing, Vector3f rotation) {
         Vector3f mergedRotation = rotation != null
                 ? rotation
                 : existing != null && existing.rotation() != null ? new Vector3f(existing.rotation()) : null;
-        return new LiveSnapshot(mergedPosition, mergedRotation);
-    }
-
-    private static Vector3d toVector(Position position) {
-        return position != null ? new Vector3d(position.x, position.y, position.z) : null;
+        return new LiveSnapshot(mergedRotation);
     }
 
     private static Vector3f toRotation(Direction direction) {
@@ -128,5 +122,5 @@ final class PlayerAvatarLiveTracker {
         return rotation;
     }
 
-    private record LiveSnapshot(Vector3d position, Vector3f rotation) {}
+    private record LiveSnapshot(Vector3f rotation) {}
 }
