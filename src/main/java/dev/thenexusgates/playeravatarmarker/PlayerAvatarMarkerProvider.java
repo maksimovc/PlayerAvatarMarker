@@ -14,11 +14,8 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MarkersCol
 import java.util.Collection;
 import java.util.UUID;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
-import java.util.logging.Logger;
 
 public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvider {
-
-    private static final Logger LOGGER = Logger.getLogger(PlayerAvatarMarkerProvider.class.getName());
 
     static void removePersistedAvatar(UUID uuid) {
         PlayerAvatarMarkerSupport.removePersistedAvatar(uuid);
@@ -35,10 +32,16 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
         }
 
         PlayerAvatarConfig config = PlayerAvatarMarkerPlugin.getConfig();
-        int avatarSize = PlayerAvatarMarkerSupport.getAvatarSize(config);
         UUID viewerUuid = viewer != null ? ((CommandSender) viewer).getUuid() : null;
         PlayerAvatarMarkerPlugin plugin = PlayerAvatarMarkerPlugin.getInstance();
-        if (plugin != null && !plugin.resolvePlayerSettings(viewerUuid).mapEnabled) {
+        PlayerRef viewerRef = plugin != null ? plugin.getActivePlayerRef(viewerUuid) : null;
+        if (plugin != null && plugin.getAvatarService() != null && viewerRef != null) {
+            plugin.getAvatarService().advanceViewerDeliveryPhase(viewerRef);
+        }
+        boolean worldMapVisible = PlayerAvatarMarkerSupport.isWorldMapVisible(viewer);
+        PlayerAvatarSurface surface = worldMapVisible ? PlayerAvatarSurface.MAP : PlayerAvatarSurface.COMPASS;
+        PlayerAvatarPlayerSettings viewerSettings = plugin != null ? plugin.resolvePlayerSettings(viewerUuid) : new PlayerAvatarPlayerSettings();
+        if (!viewerSettings.isEnabled(surface)) {
             return;
         }
 
@@ -46,6 +49,9 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
             try {
                 UUID playerUuid = ref.getUuid();
                 if (playerUuid == null) continue;
+                if (!viewerSettings.isEnabledFor(surface, viewerUuid, playerUuid)) {
+                    continue;
+                }
                 boolean isViewer = viewerUuid != null && playerUuid.equals(viewerUuid);
                 Transform t = PlayerAvatarLiveTracker.resolveTransform(ref);
                 if (t == null) continue;
@@ -55,12 +61,12 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
                 if (playerName == null || playerName.isEmpty()) {
                     playerName = playerUuid.toString().substring(0, 8);
                 }
-                Vector3f headRotation = PlayerAvatarLiveTracker.resolveRotation(ref);
                 PlayerAvatarMarkerSupport.AvatarVisual avatarVisual =
-                        PlayerAvatarMarkerSupport.resolveAvatarVisual(playerUuid, playerName, avatarSize);
+                        PlayerAvatarMarkerSupport.resolveAvatarVisual(viewerRef, playerUuid, playerName, null);
+                Vector3f headRotation = PlayerAvatarLiveTracker.resolveRotation(ref);
                 Vector3f markerRotation = PlayerAvatarMarkerSupport.resolveMarkerRotation(config, headRotation);
                 Transform transform = new Transform(position, markerRotation);
-                if (isViewer && !PlayerAvatarMarkerSupport.shouldShowSelfMarker(viewer)) {
+                if (surface == PlayerAvatarSurface.MAP && isViewer && !PlayerAvatarMarkerSupport.shouldShowSelfMarker(viewer)) {
                     continue;
                 }
 
@@ -74,9 +80,12 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
                         config == null || config.showNickname ? playerName : null,
                         avatarVisual.markerImage(),
                         transform);
-                collector.addIgnoreViewDistance(marker);
+                if (surface == PlayerAvatarSurface.MAP) {
+                    collector.addIgnoreViewDistance(marker);
+                } else {
+                    collector.add(marker);
+                }
             } catch (Exception e) {
-                LOGGER.warning("[PlayerAvatarMarker] Error creating marker: " + e.getMessage());
             }
         }
     }

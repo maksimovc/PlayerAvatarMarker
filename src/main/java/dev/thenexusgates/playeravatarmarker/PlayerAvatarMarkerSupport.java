@@ -21,29 +21,24 @@ import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 
 final class PlayerAvatarMarkerSupport {
 
     static final String MARKER_PREFIX = "PlayerAvatar-";
     static final String BETTER_MAP_MARKER_PREFIX = "PlayerRadar-";
+    static final String PLAYER_MARKER_IMAGE = "Player.png";
 
     private static final double POSITION_ID_BUCKET = 4.0d;
     private static final float ROTATION_ID_BUCKET_DEGREES = 10.0f;
 
-    private static final Logger LOGGER = Logger.getLogger(PlayerAvatarMarkerSupport.class.getName());
-    private static final Set<UUID> persistedAvatars =
-            Collections.newSetFromMap(new ConcurrentHashMap<>());
-        private static final Set<UUID> ensuredPlayerModels =
+    private static final Set<UUID> ensuredPlayerModels =
             Collections.newSetFromMap(new ConcurrentHashMap<>());
     private static final Field CLIENT_HAS_WORLDMAP_VISIBLE_FIELD = resolveClientHasWorldMapVisibleField();
 
     private PlayerAvatarMarkerSupport() {}
 
     static void removePersistedAvatar(UUID uuid) {
-        persistedAvatars.remove(uuid);
         ensuredPlayerModels.remove(uuid);
     }
 
@@ -92,7 +87,6 @@ final class PlayerAvatarMarkerSupport {
             skinComponent.setNetworkOutdated();
             ensuredPlayerModels.add(playerUuid);
         } catch (Exception e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to ensure player model: " + e.getMessage());
         }
     }
 
@@ -106,39 +100,32 @@ final class PlayerAvatarMarkerSupport {
                 : Vector3f.ZERO;
     }
 
-    static AvatarVisual resolveAvatarVisual(UUID playerUuid, String playerName, int avatarSize) {
-        String slotImage = PlayerAvatarAssetPack.getImagePath(playerUuid);
-        CompletableFuture<byte[]> avatarFuture = PlayerAvatarCache.getOrFetch(playerUuid, playerName);
-        boolean avatarAssetRegistered = persistedAvatars.contains(playerUuid);
-
-        if (avatarFuture.isDone() && !avatarFuture.isCompletedExceptionally()) {
-            byte[] bytes = avatarFuture.join();
-            if (bytes != null && bytes.length > 0) {
-                if (!avatarAssetRegistered && persistedAvatars.add(playerUuid)) {
-                    PlayerAvatarConfig cfg = PlayerAvatarMarkerPlugin.getConfig();
-                    byte[] processed = PlayerAvatarImageProcessor.process(
-                            bytes, avatarSize,
-                            cfg != null ? cfg.backgroundColorRGB() : 0x2D2D2D,
-                            cfg != null && cfg.enableBackground);
-                    LOGGER.info("[PlayerAvatarMarker] Writing avatar for " + playerName + " -> " + slotImage);
-                    PlayerAvatarAssetPack.writeAvatar(slotImage, processed);
-                }
-            }
+    static AvatarVisual resolveAvatarVisual(PlayerRef viewerRef, UUID playerUuid, String playerName, Runnable onReady) {
+        PlayerAvatarMarkerPlugin plugin = PlayerAvatarMarkerPlugin.getInstance();
+        PlayerAvatarAvatarService avatarService = plugin != null ? plugin.getAvatarService() : null;
+        if (avatarService == null) {
+            return new AvatarVisual(":fallback", null);
         }
 
-        String markerVariant = avatarAssetRegistered ? ":avatar" : ":fallback";
-        String markerImage = avatarAssetRegistered ? slotImage : PlayerAvatarAssetPack.getFallbackImagePath();
+        String markerImage = avatarService.ensureAvatarForViewer(viewerRef, playerUuid, playerName, onReady);
+        String markerVariant = PlayerAvatarAvatarService.isFallbackMarkerImage(markerImage)
+            ? ":fallback"
+            : ":avatar:" + Integer.toUnsignedString(markerImage.hashCode(), 16);
         return new AvatarVisual(markerVariant, markerImage);
     }
 
-    static String buildMarkerId(UUID playerUuid, String markerVariant) {
-        return MARKER_PREFIX + playerUuid + markerVariant;
+    static String toUiAssetPath(String markerImage) {
+        return PlayerAvatarAvatarService.toUiAssetPath(markerImage);
+    }
+
+    static String buildMarkerId(String markerPrefix, UUID playerUuid, String markerVariant) {
+        return markerPrefix + playerUuid + (markerVariant != null ? markerVariant : "");
     }
 
     static String buildDynamicMarkerId(String markerPrefix, UUID playerUuid, String markerVariant, Transform transform) {
         StringBuilder builder = new StringBuilder(markerPrefix)
                 .append(playerUuid)
-                .append(markerVariant);
+                .append(markerVariant != null ? markerVariant : "");
 
         if (transform != null && transform.getPosition() != null) {
             builder.append(':').append(quantize(transform.getPosition().x));
@@ -153,27 +140,30 @@ final class PlayerAvatarMarkerSupport {
         return builder.toString();
     }
 
-    static boolean shouldShowSelfMarker(Player viewer) {
+    static boolean isWorldMapVisible(Player viewer) {
         if (viewer == null) {
-            return true;
+            return false;
         }
 
         Field field = CLIENT_HAS_WORLDMAP_VISIBLE_FIELD;
         if (field == null) {
-            return true;
+            return false;
         }
 
         try {
             WorldMapTracker worldMapTracker = viewer.getWorldMapTracker();
             if (worldMapTracker == null) {
-                return true;
+                return false;
             }
 
             return field.getBoolean(worldMapTracker);
         } catch (ReflectiveOperationException e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to read world map visibility: " + e.getMessage());
-            return true;
+            return false;
         }
+    }
+
+    static boolean shouldShowSelfMarker(Player viewer) {
+        return isWorldMapVisible(viewer);
     }
 
     static MapMarker createPlainMarker(String markerId, String markerLabel, String markerImage, Transform transform) {
@@ -211,7 +201,9 @@ final class PlayerAvatarMarkerSupport {
 
     static MapMarker createNamedPlayerMarker(String markerId, UUID playerUuid, String markerLabel, String markerImage, Transform transform) {
         MapMarkerBuilder builder = new MapMarkerBuilder(markerId, markerImage, transform);
-        builder.withComponent(new PlayerMarkerComponent(playerUuid));
+        if (playerUuid != null) {
+            builder.withComponent(new PlayerMarkerComponent(playerUuid));
+        }
         if (markerLabel != null && !markerLabel.isBlank()) {
             builder.withCustomName(markerLabel);
         }
@@ -224,7 +216,6 @@ final class PlayerAvatarMarkerSupport {
             field.setAccessible(true);
             return field;
         } catch (ReflectiveOperationException e) {
-            LOGGER.warning("[PlayerAvatarMarker] WorldMapTracker.clientHasWorldMapVisible is unavailable: " + e.getMessage());
             return null;
         }
     }

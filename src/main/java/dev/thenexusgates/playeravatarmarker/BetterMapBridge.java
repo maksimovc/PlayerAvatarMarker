@@ -6,14 +6,10 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 
 import java.lang.reflect.Method;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 final class BetterMapBridge {
 
-    private static final Logger LOGGER = Logger.getLogger(BetterMapBridge.class.getName());
-
     private static volatile BridgeState bridgeState;
-    private static volatile boolean unavailableLogged;
 
     private BetterMapBridge() {}
 
@@ -64,7 +60,6 @@ final class BetterMapBridge {
             int radarRange = (int) state.modConfigGetRadarRange.invoke(modConfig);
             return new ViewerSettings(true, radarRange);
         } catch (Exception e) {
-            LOGGER.warning("[PlayerAvatarMarker] BetterMap settings bridge failed: " + e.getMessage());
             return ViewerSettings.disabled();
         }
     }
@@ -78,7 +73,6 @@ final class BetterMapBridge {
         try {
             state.markerTeleportUtilInject.invoke(null, marker, viewer, state.markerTypePlayer);
         } catch (Exception e) {
-            LOGGER.warning("[PlayerAvatarMarker] BetterMap teleport bridge failed: " + e.getMessage());
         }
     }
 
@@ -127,10 +121,6 @@ final class BetterMapBridge {
                     markerTeleportUtilClass.getMethod("injectTeleportContextMenu", MapMarker.class, Player.class, markerTypeClass),
                     markerTypePlayer);
         } catch (Exception e) {
-            if (!unavailableLogged) {
-                unavailableLogged = true;
-                LOGGER.info("[PlayerAvatarMarker] BetterMap 2.0.0 compatibility bridge unavailable: " + e.getMessage());
-            }
             return BridgeState.unavailable();
         }
     }

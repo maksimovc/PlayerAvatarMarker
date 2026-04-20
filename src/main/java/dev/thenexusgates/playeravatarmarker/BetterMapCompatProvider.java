@@ -14,13 +14,10 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MarkersCol
 
 import java.util.Collection;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
 
     static final String PROVIDER_KEY = "BetterMapPlayerRadar";
-
-    private static final Logger LOGGER = Logger.getLogger(BetterMapCompatProvider.class.getName());
 
     static boolean isAvailable() {
         return BetterMapBridge.isAvailable();
@@ -35,7 +32,12 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
 
         UUID viewerUuid = ((CommandSender) viewer).getUuid();
         PlayerAvatarMarkerPlugin plugin = PlayerAvatarMarkerPlugin.getInstance();
-        if (plugin != null && !plugin.resolvePlayerSettings(viewerUuid).compassEnabled) {
+        PlayerRef viewerRef = plugin != null ? plugin.getActivePlayerRef(viewerUuid) : null;
+        if (plugin != null && plugin.getAvatarService() != null && viewerRef != null) {
+            plugin.getAvatarService().advanceViewerDeliveryPhase(viewerRef);
+        }
+        PlayerAvatarPlayerSettings viewerSettingsState = plugin != null ? plugin.resolvePlayerSettings(viewerUuid) : new PlayerAvatarPlayerSettings();
+        if (!viewerSettingsState.compassEnabled) {
             return;
         }
 
@@ -48,20 +50,17 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
         long maxDistanceSquared = maxDistanceSquared(viewerSettings.radarRange());
 
         PlayerAvatarConfig config = PlayerAvatarMarkerPlugin.getConfig();
-        int avatarSize = PlayerAvatarMarkerSupport.getAvatarSize(config);
-
         for (PlayerRef ref : playerRefs) {
             try {
                 UUID playerUuid = ref.getUuid();
                 if (playerUuid == null) {
                     continue;
                 }
-
-                boolean isViewer = viewerUuid != null && viewerUuid.equals(playerUuid);
-                if (isViewer && !PlayerAvatarMarkerSupport.shouldShowSelfMarker(viewer)) {
+                if (!viewerSettingsState.isEnabledFor(PlayerAvatarSurface.COMPASS, viewerUuid, playerUuid)) {
                     continue;
                 }
 
+                boolean isViewer = viewerUuid != null && viewerUuid.equals(playerUuid);
                 if (!isViewer && isViewerHiddenForTarget(ref, viewerUuid)) {
                     continue;
                 }
@@ -81,7 +80,6 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                 if (playerName == null || playerName.isEmpty()) {
                     playerName = playerUuid.toString().substring(0, 8);
                 }
-
                 int distance = 0;
                 if (!isViewer && viewerPosition != null) {
                     distance = (int) Math.sqrt(squaredDistance(viewerPosition, playerTransform.getPosition()));
@@ -92,20 +90,19 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                     markerLabel = playerName + " (" + distance + "m)";
                 }
 
+                PlayerAvatarMarkerSupport.AvatarVisual avatarVisual =
+                        PlayerAvatarMarkerSupport.resolveAvatarVisual(viewerRef, playerUuid, playerName, null);
                 Vector3f markerRotation = PlayerAvatarMarkerSupport.resolveMarkerRotation(
                         config,
                         PlayerAvatarLiveTracker.resolveRotation(ref));
                 Transform markerTransform = new Transform(playerTransform.getPosition(), markerRotation);
-                PlayerAvatarMarkerSupport.AvatarVisual avatarVisual =
-                        PlayerAvatarMarkerSupport.resolveAvatarVisual(playerUuid, playerName, avatarSize);
 
-                MapMarker marker = PlayerAvatarMarkerSupport.createPlainPlayerMarker(
+                MapMarker marker = PlayerAvatarMarkerSupport.createNamedImageMarker(
                     PlayerAvatarMarkerSupport.buildDynamicMarkerId(
-                        PlayerAvatarMarkerSupport.BETTER_MAP_MARKER_PREFIX,
+                    PlayerAvatarMarkerSupport.BETTER_MAP_MARKER_PREFIX,
                         playerUuid,
                         avatarVisual.markerVariant(),
                         markerTransform),
-                    playerUuid,
                         markerLabel,
                         avatarVisual.markerImage(),
                         markerTransform);
@@ -113,7 +110,6 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                 BetterMapBridge.injectTeleportContextMenu(marker, viewer);
                 collector.add(marker);
             } catch (Exception e) {
-                LOGGER.warning("[PlayerAvatarMarker] BetterMap marker build failed: " + e.getMessage());
             }
         }
     }
@@ -123,8 +119,14 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
             return false;
         }
 
-        HiddenPlayersManager hiddenPlayersManager = ref.getHiddenPlayersManager();
-        return hiddenPlayersManager != null && hiddenPlayersManager.isPlayerHidden(viewerUuid);
+        return Boolean.TRUE.equals(PlayerAvatarWorldThreadBridge.call(
+                ref,
+                () -> {
+                    HiddenPlayersManager hiddenPlayersManager = ref.getHiddenPlayersManager();
+                    return hiddenPlayersManager != null && hiddenPlayersManager.isPlayerHidden(viewerUuid);
+                },
+                Boolean.FALSE,
+                "resolve hidden player state"));
     }
 
     private static Vector3d findViewerPosition(Collection<PlayerRef> playerRefs, UUID viewerUuid) {

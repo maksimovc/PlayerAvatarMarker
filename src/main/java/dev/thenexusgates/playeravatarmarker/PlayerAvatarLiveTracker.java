@@ -64,9 +64,6 @@ final class PlayerAvatarLiveTracker {
             return null;
         }
 
-        // Always use the server-authoritative transform. Caching absolutePosition from
-        // ClientMovement packets caused lag: rotation-only packets left the snapshot
-        // stale, so MapMarkerTracker saw no position delta and skipped UpdateWorldMap.
         Transform transform = ref.getTransform();
         if (transform == null || transform.getPosition() == null) {
             return null;

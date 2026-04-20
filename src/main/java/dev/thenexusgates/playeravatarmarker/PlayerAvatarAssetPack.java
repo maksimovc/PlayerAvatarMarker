@@ -17,29 +17,30 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 
 final class PlayerAvatarAssetPack {
 
-    private static final Logger LOGGER = Logger.getLogger(PlayerAvatarAssetPack.class.getName());
     private static final String PACK_ID = "thenexusgates:PlayerAvatarMarkerAssets";
     private static final String PACK_GROUP = "thenexusgates";
     private static final String PACK_NAME = "PlayerAvatarMarkerAssets";
-    private static final String PACK_VERSION = "2.0.0";
+    private static final String PACK_VERSION = "1.4.0";
     private static final String TARGET_SERVER_VERSION = "2026.03.26-89796e57b";
     private static final String FALLBACK_MARKER_IMAGE = "pam-placeholder.png";
     private static final String MARKER_ASSET_PREFIX = "UI/WorldMap/MapMarkers/";
     private static final String WORLDMAP_ASSET_PREFIX = "UI/WorldMap/";
+    private static final String PACK_ICON_RESOURCE = "/asset-pack-icon-256.png";
+    private static final String PACK_ICON_FILE = "icon-256.png";
 
     private static final String MANIFEST_JSON = """
             {
               "Group": "thenexusgates",
               "Name": "PlayerAvatarMarkerAssets",
-                                                        "Version": "2.0.0",
+                                                                                                                "Version": "1.4.0",
               "Description": "Generated avatar overrides for world map marker icons",
               "Authors": [
                 {
@@ -55,9 +56,14 @@ final class PlayerAvatarAssetPack {
             """;
 
     private static final ConcurrentHashMap<String, FileCommonAsset> pushedAssets = new ConcurrentHashMap<>();
+    private static final List<String> MIGRATED_DATA_ENTRIES = List.of(
+            "playeravatarmarker-config.json",
+            "player-settings"
+        );
 
     private static volatile boolean initialized;
     private static volatile boolean registered;
+    private static Path dataRoot;
     private static Path packRoot;
 
     private PlayerAvatarAssetPack() {}
@@ -70,6 +76,11 @@ final class PlayerAvatarAssetPack {
     static Path getPackRoot() {
         ensureInitialized();
         return packRoot;
+    }
+
+    static Path getDataRoot() {
+        ensureInitialized();
+        return dataRoot;
     }
 
     static String getImagePath(UUID playerUuid) {
@@ -101,12 +112,11 @@ final class PlayerAvatarAssetPack {
 
         try {
             Path output = packRoot.resolve("Common/UI/WorldMap/MapMarkers").resolve(slotImage);
-            Files.createDirectories(output.getParent());
-            Files.write(output, pngBytes);
+            if (!writeBytesIfChanged(output, pngBytes)) {
+                return;
+            }
             pushAssetToClients(MARKER_ASSET_PREFIX + slotImage, pngBytes, output);
         } catch (IOException e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to write avatar asset pack file for "
-                    + slotImage + ": " + e.getMessage());
         }
     }
 
@@ -114,7 +124,6 @@ final class PlayerAvatarAssetPack {
         try {
             CommonAssetModule cam = CommonAssetModule.get();
             if (cam == null) {
-                LOGGER.warning("[PlayerAvatarMarker] CommonAssetModule not available, cannot push asset");
                 return;
             }
 
@@ -125,9 +134,7 @@ final class PlayerAvatarAssetPack {
             if (universe != null && universe.getPlayerCount() > 0) {
                 universe.broadcastPacketNoCache(new RequestCommonAssetsRebuild());
             }
-            LOGGER.info("[PlayerAvatarMarker] Registered avatar asset: " + assetName);
         } catch (Exception e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to push avatar asset to clients: " + e.getMessage());
         }
     }
 
@@ -166,12 +173,19 @@ final class PlayerAvatarAssetPack {
                 Path modsDirectory = Files.isDirectory(pluginLocation)
                         ? pluginLocation
                         : pluginLocation.getParent();
+                Path worldRoot = modsDirectory.getParent();
 
+                dataRoot = worldRoot == null
+                    ? modsDirectory.resolve("PlayerAvatarMarker")
+                    : worldRoot.resolve("plugins").resolve("PlayerAvatarMarker");
                 packRoot = modsDirectory.resolve("PlayerAvatarMarkerAssets");
 
+                Files.createDirectories(dataRoot);
                 Files.createDirectories(packRoot);
+                migrateLegacyData();
                 Path manifestPath = packRoot.resolve("manifest.json");
                 Files.writeString(manifestPath, MANIFEST_JSON, StandardCharsets.UTF_8);
+                ensurePackIcon();
                 ensureStaticWorldMapAssets();
                 ensurePackEnabled(modsDirectory.getParent().resolve("config.json"));
 
@@ -200,7 +214,26 @@ final class PlayerAvatarAssetPack {
 
         assetModule.registerPack(PACK_ID, packRoot, buildRuntimeManifest(), true);
         registered = true;
-        LOGGER.info("[PlayerAvatarMarker] Registered runtime asset pack: " + PACK_ID);
+    }
+
+    private static void ensurePackIcon() {
+        if (packRoot == null) {
+            return;
+        }
+
+        try (var stream = PlayerAvatarAssetPack.class.getResourceAsStream(PACK_ICON_RESOURCE)) {
+            if (stream == null) {
+                return;
+            }
+
+            byte[] iconBytes = stream.readAllBytes();
+            if (iconBytes.length == 0) {
+                return;
+            }
+
+            writeBytesIfChanged(packRoot.resolve(PACK_ICON_FILE), iconBytes);
+        } catch (IOException e) {
+        }
     }
 
     private static void ensureStaticWorldMapAssets() {
@@ -224,13 +257,47 @@ final class PlayerAvatarAssetPack {
         }
 
         try {
-            Files.createDirectories(output.getParent());
-            Files.write(output, pngBytes);
+            if (!writeBytesIfChanged(output, pngBytes)) {
+                return;
+            }
             pushAssetToClients(assetName, pngBytes, output);
         } catch (IOException e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to write static world map asset "
-                    + assetName + ": " + e.getMessage());
         }
+    }
+
+    private static void migrateLegacyData() throws IOException {
+        if (dataRoot == null || packRoot == null || dataRoot.equals(packRoot)) {
+            return;
+        }
+
+        for (String entryName : MIGRATED_DATA_ENTRIES) {
+            Path legacyPath = packRoot.resolve(entryName);
+            if (!Files.exists(legacyPath)) {
+                continue;
+            }
+
+            Path targetPath = dataRoot.resolve(entryName);
+            moveRecursively(legacyPath, targetPath);
+        }
+    }
+
+    private static void moveRecursively(Path source, Path target) throws IOException {
+        if (Files.isDirectory(source)) {
+            Files.createDirectories(target);
+            try (var stream = Files.list(source)) {
+                for (Path child : (Iterable<Path>) stream::iterator) {
+                    moveRecursively(child, target.resolve(child.getFileName().toString()));
+                }
+            }
+            Files.deleteIfExists(source);
+            return;
+        }
+
+        Path parent = target.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
     }
 
     private static PluginManifest buildRuntimeManifest() {
@@ -271,8 +338,15 @@ final class PlayerAvatarAssetPack {
                 Files.writeString(configPath, updated, StandardCharsets.UTF_8);
             }
         } catch (IOException e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to auto-enable asset pack in config.json: "
-                    + e.getMessage());
         }
+    }
+
+    private static boolean writeBytesIfChanged(Path output, byte[] pngBytes) throws IOException {
+        Files.createDirectories(output.getParent());
+        if (Files.exists(output) && java.util.Arrays.equals(Files.readAllBytes(output), pngBytes)) {
+            return false;
+        }
+        Files.write(output, pngBytes);
+        return true;
     }
 }

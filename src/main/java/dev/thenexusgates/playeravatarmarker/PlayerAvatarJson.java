@@ -50,6 +50,10 @@ final class PlayerAvatarJson {
         return fallback;
     }
 
+    Map<String, String> values() {
+        return values;
+    }
+
     static String writeObject(LinkedHashMap<String, Object> values) {
         StringBuilder builder = new StringBuilder(values.size() * 40);
         builder.append("{\n");

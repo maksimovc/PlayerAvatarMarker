@@ -1,34 +1,39 @@
 # PlayerAvatarMarker
 
-A Hytale server mod that shows a unique avatar portrait for each player on the large world map and, when available, on the minimap and compass through FastMiniMap and BetterMap integration.
+PlayerAvatarMarker is a Hytale server mod that replaces the generic player dot with each player's avatar portrait on the large world map and, when companion mods are present, on FastMiniMap and BetterMap surfaces as well.
 
-Version 2.0.0 adds a built-in control UI so each player can choose where avatar markers appear.
+The current 1.4.0 release includes the built-in control UI, per-player visibility profiles, generated static marker overrides, and the newer plugin data layout under `plugins/PlayerAvatarMarker`.
 
 ## Features
 
 - Circular avatar portrait for each online player on the large world map
-- Avatars fetched from hyvatar.io and cached in memory
-- Unlimited players supported
-- Player nickname shown under the avatar marker
+- Avatars fetched from hyvatar.io and cached for reuse in memory and on disk
 - Lower-latency position updates through live movement tracking
-- Suppresses the duplicate vanilla player marker
-- BetterMap compatibility through a dedicated radar provider
-- FastMiniMap overlay support when FastMiniMap is installed
-- Built-in `/playeravatar` UI with per-player map, minimap, and compass toggles
-- Online player list with avatar preview and nickname inside the UI
-- Configurable: nickname visibility, avatar size, rotation, background
+- Player nickname shown directly below the avatar marker when enabled
+- Suppresses the duplicate vanilla player marker with generated static override assets
+- BetterMap compatibility through a dedicated radar-style provider
+- FastMiniMap player-overlay support when FastMiniMap is installed
+- Built-in `/playeravatar` control UI with per-surface global toggles and per-player overrides
+- Online player list with avatar preview and nickname inside the control page
+- Configurable nickname visibility, avatar size, facing rotation, and background styling
 
 ## Installation
 
-1. Copy `PlayerAvatarMarker-2.0.0.jar` to `UserData/Saves/<YourWorld>/mods/`
+1. Copy `PlayerAvatarMarker-1.4.0.jar` to `UserData/Saves/<YourWorld>/mods/`
 2. Start the server
 
-This is a regular Hytale mod, so it belongs in the `mods/` folder.
+PlayerAvatarMarker is a normal Hytale mod jar and belongs in the world's `mods/` folder. On first start it also creates the companion asset-pack directory `PlayerAvatarMarkerAssets` automatically for static world-map marker overrides.
+
+## Data layout
+
+- Global config: `UserData/Saves/<World>/plugins/PlayerAvatarMarker/playeravatarmarker-config.json`
+- Per-player visibility profiles: `UserData/Saves/<World>/plugins/PlayerAvatarMarker/player-settings/<player-uuid>.json`
+- Avatar disk cache: `UserData/Saves/<World>/plugins/PlayerAvatarMarker/avatar-cache/`
+- Generated static asset pack: `UserData/Saves/<World>/mods/PlayerAvatarMarkerAssets/`
+
+Per-player visibility profiles currently use `schemaVersion: 2` and store the three surface toggles plus per-target override masks. Existing legacy data is migrated into the plugin data directory automatically.
 
 ## Configuration
-
-Config file:
-`UserData/Saves/<world>/mods/PlayerAvatarMarkerAssets/playeravatarmarker-config.json`
 
 ```json
 {
@@ -50,10 +55,10 @@ Config file:
 
 ## Compatibility
 
-- Works standalone
-- Works with BetterMap by Paralaxe
-- Adds a minimap overlay when FastMiniMap is installed
-- Safe with mods that do not replace the same world-map player provider
+- Works standalone on the main world map
+- Adds a player-avatar overlay to FastMiniMap when FastMiniMap is installed
+- Adds a BetterMap-compatible player radar provider when BetterMap is installed
+- Safe with mods that do not replace the same world-map player marker provider
 
 ## Building from source
 
@@ -62,7 +67,7 @@ cd PlayerAvatarMarker
 gradlew.bat build
 ```
 
-Output: `build/libs/PlayerAvatarMarker-2.0.0.jar`
+Output: `build/libs/PlayerAvatarMarker-1.4.0.jar`
 
 ## Requirements
 
@@ -79,12 +84,12 @@ Output: `build/libs/PlayerAvatarMarker-2.0.0.jar`
 - Compass toggle permission: `playeravatarmarker.settings.compass`
 - Admin bypass: `playeravatarmarker.admin`
 
-## 2.0.0 Highlights
+## 1.4.0 Highlights
 
-- Added a custom in-game control UI for PlayerAvatarMarker
-- Added per-player visibility toggles for the large map, FastMiniMap, and BetterMap compass
-- Added an online players panel with avatar preview and nickname list
-- Enabled packaged UI assets directly from the mod asset pack
+- Ships with the built-in PlayerAvatarMarker control UI
+- Persists per-player visibility profiles under `plugins/PlayerAvatarMarker/player-settings`
+- Uses disk-backed avatar caching under `plugins/PlayerAvatarMarker/avatar-cache`
+- Generates and maintains static world-map marker override assets in `mods/PlayerAvatarMarkerAssets`
 
 ## License
 

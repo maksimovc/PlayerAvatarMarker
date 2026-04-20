@@ -20,18 +20,18 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.logging.Level;
 
 public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     static final String PROVIDER_KEY = "playerIcons";
-    private static final String VERSION = "2.0.0";
+    private static final String VERSION = "1.4.0";
 
     private static PlayerAvatarMarkerPlugin instance;
     private static PlayerAvatarConfig config;
     private final ConcurrentMap<UUID, PlayerRef> activePlayers = new ConcurrentHashMap<>();
     private FastMiniMapCompatService fastMiniMapCompatService;
     private PlayerAvatarPlayerSettingsStore playerSettingsStore;
+    private PlayerAvatarAvatarService avatarService;
     private PlayerAvatarUiSounds uiSounds;
     private Path dataDirectory;
 
@@ -47,8 +47,16 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
         return activePlayers.values();
     }
 
+    public PlayerRef getActivePlayerRef(UUID playerUuid) {
+        return playerUuid != null ? activePlayers.get(playerUuid) : null;
+    }
+
     public PlayerAvatarUiSounds getUiSounds() {
         return uiSounds;
+    }
+
+    public PlayerAvatarAvatarService getAvatarService() {
+        return avatarService;
     }
 
     public PlayerAvatarMarkerPlugin(JavaPluginInit init) {
@@ -58,13 +66,13 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Starting v" + VERSION);
-
+        PlayerAvatarStorage.init();
         PlayerAvatarAssetPack.init();
         PlayerAvatarLiveTracker.register();
-        dataDirectory = PlayerAvatarAssetPack.getPackRoot();
+        dataDirectory = PlayerAvatarStorage.getDataRoot();
         config = PlayerAvatarConfig.load(
                 dataDirectory.resolve("playeravatarmarker-config.json"));
+        avatarService = new PlayerAvatarAvatarService(dataDirectory);
         playerSettingsStore = new PlayerAvatarPlayerSettingsStore(dataDirectory);
         uiSounds = new PlayerAvatarUiSounds();
         getCommandRegistry().registerCommand(new PlayerAvatarControlCommand(this));
@@ -84,23 +92,29 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
         });
 
         getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
-            // getPlayer() and getPlayerRef() on Player are deprecated; required here since
-            // PlayerReadyEvent exposes no direct PlayerRef path.
-            @SuppressWarnings("deprecation")
+            Ref<EntityStore> entityRef = event.getPlayerRef();
+            if (entityRef == null || !entityRef.isValid()) {
+                return;
+            }
+            Store<EntityStore> store = entityRef.getStore();
+            if (store == null) {
+                return;
+            }
+
+            PlayerRef ref = store.getComponent(entityRef, PlayerRef.getComponentType());
+            if (ref == null) {
+                return;
+            }
+
             com.hypixel.hytale.server.core.entity.entities.Player player = event.getPlayer();
-            if (player == null) return;
-            World playerWorld = player.getWorld();
+            World playerWorld = player == null ? null : player.getWorld();
             if (playerWorld != null) {
                 registerProvider(playerWorld);
             }
-            @SuppressWarnings("deprecation")
-            PlayerRef ref = player.getPlayerRef();
             registerActivePlayer(ref);
-            // Do NOT call sendAvatarsToPlayer here: the player is already in the Playing
-            // stage, and sending assets via CommonAssetModule at that point triggers a
-            // WorldLoadProgress packet which the client rejects, causing a disconnect.
-            // Assets registered via addCommonAsset are automatically delivered during
-            // this player's SettingUp phase before PlayerReadyEvent fires.
+            if (avatarService != null && ref != null) {
+                avatarService.clearViewer(ref.getUuid());
+            }
             PlayerAvatarMarkerSupport.ensureRenderablePlayerModel(ref);
             warmAvatarForPlayer(ref);
         });
@@ -115,15 +129,11 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
                 playerSettingsStore.unload(uuid);
             }
             PlayerAvatarLiveTracker.remove(uuid);
-            PlayerAvatarCache.invalidate(uuid);
-            PlayerAvatarAssetPack.cleanupAvatar(uuid);
-            PlayerAvatarMarkerProvider.removePersistedAvatar(uuid);
-            if (fastMiniMapCompatService != null) {
-                fastMiniMapCompatService.invalidatePlayer(uuid);
+            if (avatarService != null) {
+                avatarService.clearViewer(uuid);
             }
+            PlayerAvatarMarkerProvider.removePersistedAvatar(uuid);
         });
-
-        getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Ready.");
 
         if (FastMiniMapCompat.isAvailable()) {
             fastMiniMapCompatService = new FastMiniMapCompatService();
@@ -138,13 +148,11 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
         Map<String, WorldMapManager.MarkerProvider> providers = worldMapManager.getMarkerProviders();
         if (providers == null || !(providers.get(PROVIDER_KEY) instanceof PlayerAvatarMarkerProvider)) {
             installProvider(worldMapManager, PROVIDER_KEY, new PlayerAvatarMarkerProvider());
-            getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Provider registered: " + world.getName());
         }
 
         if (BetterMapCompatProvider.isAvailable()) {
             if (providers == null || !(providers.get(BetterMapCompatProvider.PROVIDER_KEY) instanceof BetterMapCompatProvider)) {
                 installProvider(worldMapManager, BetterMapCompatProvider.PROVIDER_KEY, new BetterMapCompatProvider());
-                getLogger().at(Level.INFO).log("[PlayerAvatarMarker] BetterMap compatibility provider active: " + world.getName());
             }
         }
     }
@@ -170,7 +178,6 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
         boolean removed = providers.entrySet().removeIf(entry -> isVanillaOtherPlayersProvider(entry.getValue()));
         if (removed) {
-            getLogger().at(Level.INFO).log("[PlayerAvatarMarker] Removed vanilla player marker provider: " + world.getName());
         }
     }
 
@@ -248,6 +255,10 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             return;
         }
 
-        PlayerAvatarCache.getOrFetch(uuid, username);
+        if (avatarService != null) {
+            avatarService.prefetch(uuid, username);
+        } else {
+            PlayerAvatarCache.getOrFetch(uuid, username);
+        }
     }
 }

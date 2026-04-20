@@ -1,24 +1,29 @@
 # PlayerAvatarMarker
 
-Shows each online player's avatar portrait on the world map (M key) and optionally on the minimap or compass when [FastMiniMap](https://www.curseforge.com/hytale/mods/fast-mini-map) or BetterMap are installed. Avatars are fetched from [hyvatar.io](https://hyvatar.io/).
+Shows each online player's avatar portrait on the world map and optionally on FastMiniMap or BetterMap when those mods are installed. Avatars are fetched from [hyvatar.io](https://hyvatar.io/) and cached under the plugin data directory.
 
 ## Features
 
 - Circular avatar portrait per player on the world map
-- Avatars fetched from hyvatar.io on first join and cached in memory
-- No player limit
-- Nickname shown below the avatar without hover
-- Low-latency position updates via live movement packet tracking
-- Suppresses the vanilla duplicate player marker
-- Configurable: background circle, background color, nickname visibility, avatar size
-- **Minimap overlay** — avatars + nicknames appear on the minimap when FastMiniMap is installed
-- Compatible with BetterMap by Paralaxe (respects radar range and visibility settings)
-- **Built-in control UI** — open `/playeravatar` to manage map, minimap, and compass visibility per player
-- **Online players panel** — see all online players with avatar preview and nickname in one page
+- Avatar fetch and reuse through in-memory plus disk-backed caching
+- Low-latency position updates via live movement tracking
+- Nickname shown below the avatar without hover when enabled
+- Suppresses the vanilla duplicate player marker with generated override assets
+- Built-in `/playeravatar` UI for map, minimap, and compass visibility control
+- Online players panel with avatar preview and nickname list
+- FastMiniMap player-overlay support
+- BetterMap compatibility that respects viewer settings
+
+## Data layout
+
+- Global config: `UserData/Saves/<World>/plugins/PlayerAvatarMarker/playeravatarmarker-config.json`
+- Per-player visibility profiles: `UserData/Saves/<World>/plugins/PlayerAvatarMarker/player-settings/<player-uuid>.json`
+- Avatar cache: `UserData/Saves/<World>/plugins/PlayerAvatarMarker/avatar-cache/`
+- Generated static asset pack: `UserData/Saves/<World>/mods/PlayerAvatarMarkerAssets/`
+
+Per-player visibility profiles currently use `schemaVersion: 2`.
 
 ## Configuration
-
-Config path: `UserData/Saves/<World>/mods/PlayerAvatarMarkerAssets/playeravatarmarker-config.json`
 
 | Key | Default | Description |
 |-----|---------|-------------|
@@ -40,10 +45,9 @@ Config path: `UserData/Saves/<World>/mods/PlayerAvatarMarkerAssets/playeravatarm
 
 ## Compatibility
 
-- Standalone — works without any other mods
-- Gains **minimap player overlay** with FastMiniMap installed
-- Fully compatible with **BetterMap by Paralaxe**
-- Compatible with **MapTrail by jadedbay**
+- Standalone world-map avatar markers
+- Gains a FastMiniMap player overlay when FastMiniMap is installed
+- Gains BetterMap radar/compass support when BetterMap is installed
 
 ## Recommended mods
 

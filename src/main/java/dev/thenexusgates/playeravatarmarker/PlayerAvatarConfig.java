@@ -4,13 +4,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 final class PlayerAvatarConfig {
-
-    private static final Logger LOGGER = Logger.getLogger(PlayerAvatarConfig.class.getName());
 
     boolean enableRotation = false;
     boolean enableBackground = true;
@@ -34,9 +31,7 @@ final class PlayerAvatarConfig {
             cfg.backgroundColor = readString(json, "backgroundColor", cfg.backgroundColor);
             cfg.showNickname = readBool(json, "showNickname", cfg.showNickname);
             cfg.avatarSize = readInt(json, "avatarSize", cfg.avatarSize);
-            LOGGER.info("[PlayerAvatarMarker] Config loaded: showNick=" + cfg.showNickname + ", avatarSize=" + cfg.avatarSize);
         } catch (IOException e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to read config, using defaults: " + e.getMessage());
         }
         return cfg;
     }
@@ -55,7 +50,6 @@ final class PlayerAvatarConfig {
         try {
             Files.writeString(configPath, json, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to save default config: " + e.getMessage());
         }
     }
 

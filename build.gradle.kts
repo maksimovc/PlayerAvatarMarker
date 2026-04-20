@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dev.thenexusgates"
-version = "2.0.0"
+version = "1.4.0"
 
 repositories {
     mavenCentral()
@@ -21,11 +21,13 @@ extensions.configure<JavaPluginExtension> {
     }
 }
 
-val fastMiniMapJar = layout.projectDirectory.file("../FastMiniMap/build/libs/FastMiniMap-2.1.5.jar").asFile
+val fastMiniMapJar = fileTree("../FastMiniMap/build/libs") {
+    include("FastMiniMap-*.jar")
+}.files.maxByOrNull { it.lastModified() }
 
 dependencies {
     add("compileOnly", "com.hypixel.hytale:Server:+")
-    if (fastMiniMapJar.exists()) {
+    if (fastMiniMapJar != null && fastMiniMapJar.exists()) {
         add("compileOnly", files(fastMiniMapJar))
     }
 }

@@ -8,11 +8,8 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.logging.Logger;
 
 final class PlayerAvatarImageProcessor {
-
-    private static final Logger LOGGER = Logger.getLogger(PlayerAvatarImageProcessor.class.getName());
 
     private PlayerAvatarImageProcessor() {}
 
@@ -64,7 +61,6 @@ final class PlayerAvatarImageProcessor {
             ImageIO.write(out, "PNG", baos);
             return baos.toByteArray();
         } catch (IOException e) {
-            LOGGER.warning("[PlayerAvatarMarker] Image processing failed: " + e.getMessage());
             return rawPng;
         }
     }
@@ -76,7 +72,6 @@ final class PlayerAvatarImageProcessor {
             ImageIO.write(img, "PNG", baos);
             return baos.toByteArray();
         } catch (IOException e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to create transparent PNG: " + e.getMessage());
             return new byte[0];
         }
     }
@@ -119,7 +114,6 @@ final class PlayerAvatarImageProcessor {
             ImageIO.write(out, "PNG", baos);
             return baos.toByteArray();
         } catch (IOException e) {
-            LOGGER.warning("[PlayerAvatarMarker] Failed to create fallback marker PNG: " + e.getMessage());
             return createTransparentPng();
         }
     }
