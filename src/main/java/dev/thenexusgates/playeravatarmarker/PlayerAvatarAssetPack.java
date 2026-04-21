@@ -28,7 +28,7 @@ final class PlayerAvatarAssetPack {
     private static final String PACK_ID = "thenexusgates:PlayerAvatarMarkerAssets";
     private static final String PACK_GROUP = "thenexusgates";
     private static final String PACK_NAME = "PlayerAvatarMarkerAssets";
-    private static final String PACK_VERSION = "1.4.0";
+    private static final String PACK_VERSION = "1.4.1";
     private static final String TARGET_SERVER_VERSION = "2026.03.26-89796e57b";
     private static final String FALLBACK_MARKER_IMAGE = "pam-placeholder.png";
     private static final String MARKER_ASSET_PREFIX = "UI/WorldMap/MapMarkers/";
@@ -40,7 +40,7 @@ final class PlayerAvatarAssetPack {
             {
               "Group": "thenexusgates",
               "Name": "PlayerAvatarMarkerAssets",
-                                                                                                                "Version": "1.4.0",
+                                                                                                                                                                                                                                "Version": "1.4.1",
               "Description": "Generated avatar overrides for world map marker icons",
               "Authors": [
                 {

@@ -163,7 +163,25 @@ final class PlayerAvatarMarkerSupport {
     }
 
     static boolean shouldShowSelfMarker(Player viewer) {
-        return isWorldMapVisible(viewer);
+        if (viewer == null) {
+            return true;
+        }
+
+        Field field = CLIENT_HAS_WORLDMAP_VISIBLE_FIELD;
+        if (field == null) {
+            return true;
+        }
+
+        try {
+            WorldMapTracker worldMapTracker = viewer.getWorldMapTracker();
+            if (worldMapTracker == null) {
+                return true;
+            }
+
+            return field.getBoolean(worldMapTracker);
+        } catch (ReflectiveOperationException e) {
+            return true;
+        }
     }
 
     static MapMarker createPlainMarker(String markerId, String markerLabel, String markerImage, Transform transform) {

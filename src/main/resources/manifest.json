@@ -1,7 +1,7 @@
 {
   "Group": "thenexusgates",
   "Name": "PlayerAvatarMarker",
-  "Version": "1.4.0",
+  "Version": "1.4.1",
   "Description": "Shows player avatar markers on the large map, minimap, and compass, with a built-in control UI.",
   "Authors": [
     {

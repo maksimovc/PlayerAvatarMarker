@@ -45,6 +45,7 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
             return;
         }
 
+        boolean viewerIsVanished = VanishBridge.isVanished(viewerUuid);
         for (PlayerRef ref : playerRefs) {
             try {
                 UUID playerUuid = ref.getUuid();
@@ -53,6 +54,11 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
                     continue;
                 }
                 boolean isViewer = viewerUuid != null && playerUuid.equals(viewerUuid);
+                // hide vanished players only from non-vanished viewers;
+                // vanished admins can still see everyone
+                if (!isViewer && !viewerIsVanished && VanishBridge.isVanished(playerUuid)) {
+                    continue;
+                }
                 Transform t = PlayerAvatarLiveTracker.resolveTransform(ref);
                 if (t == null) continue;
                 Vector3d position = t.getPosition();

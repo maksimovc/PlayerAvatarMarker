@@ -2,7 +2,7 @@
 
 PlayerAvatarMarker is a Hytale server mod that replaces the generic player dot with each player's avatar portrait on the large world map and, when companion mods are present, on FastMiniMap and BetterMap surfaces as well.
 
-The current 1.4.0 release includes the built-in control UI, per-player visibility profiles, generated static marker overrides, and the newer plugin data layout under `plugins/PlayerAvatarMarker`.
+The current 1.4.1 release includes the built-in control UI, per-player visibility profiles, generated static marker overrides, and the newer plugin data layout under `plugins/PlayerAvatarMarker`.
 
 ## Features
 
@@ -19,7 +19,7 @@ The current 1.4.0 release includes the built-in control UI, per-player visibilit
 
 ## Installation
 
-1. Copy `PlayerAvatarMarker-1.4.0.jar` to `UserData/Saves/<YourWorld>/mods/`
+1. Copy `PlayerAvatarMarker-1.4.1.jar` to `UserData/Saves/<YourWorld>/mods/`
 2. Start the server
 
 PlayerAvatarMarker is a normal Hytale mod jar and belongs in the world's `mods/` folder. On first start it also creates the companion asset-pack directory `PlayerAvatarMarkerAssets` automatically for static world-map marker overrides.
@@ -67,7 +67,7 @@ cd PlayerAvatarMarker
 gradlew.bat build
 ```
 
-Output: `build/libs/PlayerAvatarMarker-1.4.0.jar`
+Output: `build/libs/PlayerAvatarMarker-1.4.1.jar`
 
 ## Requirements
 
@@ -84,7 +84,7 @@ Output: `build/libs/PlayerAvatarMarker-1.4.0.jar`
 - Compass toggle permission: `playeravatarmarker.settings.compass`
 - Admin bypass: `playeravatarmarker.admin`
 
-## 1.4.0 Highlights
+## 1.4.1 Highlights
 
 - Ships with the built-in PlayerAvatarMarker control UI
 - Persists per-player visibility profiles under `plugins/PlayerAvatarMarker/player-settings`

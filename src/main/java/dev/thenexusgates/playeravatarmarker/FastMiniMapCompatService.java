@@ -70,11 +70,17 @@ final class FastMiniMapCompatService {
         PlayerAvatarConfig config = PlayerAvatarMarkerPlugin.getConfig();
         boolean showNickname = config == null || config.showNickname;
 
+        // vanished admins can still see everyone; only hide vanished players from regular viewers
+        boolean viewerIsVanished = VanishBridge.isVanished(viewerUuid);
         List<FastMiniMapPlayerLayerApi.PlayerDot> dots = new ArrayList<>();
         for (PlayerRef ref : playerRefs) {
             UUID uuid = ref.getUuid();
             if (uuid == null || uuid.equals(viewerUuid)) {
                 continue; // skip self
+            }
+
+            if (!viewerIsVanished && VanishBridge.isVanished(uuid)) {
+                continue;
             }
 
             if (!viewerSettings.isEnabledFor(PlayerAvatarSurface.MINIMAP, viewerUuid, uuid)) {

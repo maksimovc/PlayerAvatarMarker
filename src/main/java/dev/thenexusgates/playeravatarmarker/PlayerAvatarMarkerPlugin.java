@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentMap;
 public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     static final String PROVIDER_KEY = "playerIcons";
-    private static final String VERSION = "1.4.0";
+    private static final String VERSION = "1.4.1";
 
     private static PlayerAvatarMarkerPlugin instance;
     private static PlayerAvatarConfig config;

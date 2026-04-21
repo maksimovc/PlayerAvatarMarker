@@ -37,7 +37,9 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
             plugin.getAvatarService().advanceViewerDeliveryPhase(viewerRef);
         }
         PlayerAvatarPlayerSettings viewerSettingsState = plugin != null ? plugin.resolvePlayerSettings(viewerUuid) : new PlayerAvatarPlayerSettings();
-        if (!viewerSettingsState.compassEnabled) {
+        boolean worldMapVisible = PlayerAvatarMarkerSupport.isWorldMapVisible(viewer);
+        PlayerAvatarSurface surface = worldMapVisible ? PlayerAvatarSurface.MAP : PlayerAvatarSurface.COMPASS;
+        if (!viewerSettingsState.isEnabled(surface)) {
             return;
         }
 
@@ -47,7 +49,9 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
         }
 
         Vector3d viewerPosition = findViewerPosition(playerRefs, viewerUuid);
-        long maxDistanceSquared = maxDistanceSquared(viewerSettings.radarRange());
+        long maxDistanceSquared = surface == PlayerAvatarSurface.MAP
+                ? Long.MAX_VALUE
+                : maxDistanceSquared(viewerSettings.radarRange());
 
         PlayerAvatarConfig config = PlayerAvatarMarkerPlugin.getConfig();
         for (PlayerRef ref : playerRefs) {
@@ -56,11 +60,21 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                 if (playerUuid == null) {
                     continue;
                 }
-                if (!viewerSettingsState.isEnabledFor(PlayerAvatarSurface.COMPASS, viewerUuid, playerUuid)) {
+                boolean isViewer = viewerUuid != null && viewerUuid.equals(playerUuid);
+                if (!viewerSettingsState.isEnabledFor(surface, viewerUuid, playerUuid)) {
                     continue;
                 }
 
-                boolean isViewer = viewerUuid != null && viewerUuid.equals(playerUuid);
+                // hide vanished players only from non-vanished viewers;
+                // vanished admins can still see everyone
+                if (!isViewer && !VanishBridge.isVanished(viewerUuid) && VanishBridge.isVanished(playerUuid)) {
+                    continue;
+                }
+
+                if (surface == PlayerAvatarSurface.MAP && isViewer && !PlayerAvatarMarkerSupport.shouldShowSelfMarker(viewer)) {
+                    continue;
+                }
+
                 if (!isViewer && isViewerHiddenForTarget(ref, viewerUuid)) {
                     continue;
                 }
@@ -97,18 +111,23 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                         PlayerAvatarLiveTracker.resolveRotation(ref));
                 Transform markerTransform = new Transform(playerTransform.getPosition(), markerRotation);
 
-                MapMarker marker = PlayerAvatarMarkerSupport.createNamedImageMarker(
+                MapMarker marker = PlayerAvatarMarkerSupport.createPlainPlayerMarker(
                     PlayerAvatarMarkerSupport.buildDynamicMarkerId(
                     PlayerAvatarMarkerSupport.BETTER_MAP_MARKER_PREFIX,
                         playerUuid,
                         avatarVisual.markerVariant(),
                         markerTransform),
+                    playerUuid,
                         markerLabel,
                         avatarVisual.markerImage(),
                         markerTransform);
 
                 BetterMapBridge.injectTeleportContextMenu(marker, viewer);
-                collector.add(marker);
+                if (surface == PlayerAvatarSurface.MAP) {
+                    collector.addIgnoreViewDistance(marker);
+                } else {
+                    collector.add(marker);
+                }
             } catch (Exception e) {
             }
         }
