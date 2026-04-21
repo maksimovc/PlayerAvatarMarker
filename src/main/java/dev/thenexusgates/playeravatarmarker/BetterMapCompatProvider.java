@@ -65,12 +65,6 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                     continue;
                 }
 
-                // hide vanished players only from non-vanished viewers;
-                // vanished admins can still see everyone
-                if (!isViewer && !VanishBridge.isVanished(viewerUuid) && VanishBridge.isVanished(playerUuid)) {
-                    continue;
-                }
-
                 if (surface == PlayerAvatarSurface.MAP && isViewer && !PlayerAvatarMarkerSupport.shouldShowSelfMarker(viewer)) {
                     continue;
                 }
