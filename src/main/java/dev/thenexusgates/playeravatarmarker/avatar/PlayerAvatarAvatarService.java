@@ -1,6 +1,5 @@
 package dev.thenexusgates.playeravatarmarker;
 
-import com.hypixel.hytale.protocol.packets.setup.RequestCommonAssetsRebuild;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 
 import javax.imageio.ImageIO;
@@ -10,10 +9,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Collection;
 import java.util.HexFormat;
-import java.util.LinkedHashMap;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,64 +20,33 @@ final class PlayerAvatarAvatarService {
     private static final String FALLBACK_MARKER_IMAGE = "pam-placeholder.png";
     private static final int MINIMAP_AVATAR_SIZE = 22;
     private static final int MIN_MARKER_AVATAR_SIZE = 16;
+    private static final float GHOSTED_ALPHA = 0.5f;
 
     private final ConcurrentHashMap<UUID, AvatarBundle> avatarBundles = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, CompletableFuture<AvatarBundle>> pendingAvatarBundles = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<UUID, ViewerDeliveryState> viewerStates = new ConcurrentHashMap<>();
+    private final PlayerAvatarViewerAssetDelivery viewerAssetDelivery = new PlayerAvatarViewerAssetDelivery();
     private final BufferedImage fallbackIcon;
+    private final BufferedImage fallbackGhostedIcon;
 
     PlayerAvatarAvatarService(Path dataRoot) {
         PlayerAvatarCache.configure(dataRoot);
         this.fallbackIcon = decodeImage(PlayerAvatarImageProcessor.createFallbackMarkerPng(MINIMAP_AVATAR_SIZE));
+        this.fallbackGhostedIcon = decodeImage(PlayerAvatarImageProcessor.applyOpacity(
+                PlayerAvatarImageProcessor.createFallbackMarkerPng(MINIMAP_AVATAR_SIZE),
+                GHOSTED_ALPHA,
+                true));
     }
 
     void clearViewer(UUID viewerUuid) {
-        if (viewerUuid != null) {
-            viewerStates.remove(viewerUuid);
-        }
+        viewerAssetDelivery.clearViewer(viewerUuid);
     }
 
     boolean hasPendingAssets(UUID viewerUuid) {
-        if (viewerUuid == null) {
-            return false;
-        }
-
-        ViewerDeliveryState state = viewerStates.get(viewerUuid);
-        return state != null && state.hasPendingAssets();
+        return viewerAssetDelivery.hasPendingAssets(viewerUuid);
     }
 
     boolean advanceViewerDeliveryPhase(PlayerRef viewer) {
-        if (viewer == null) {
-            return false;
-        }
-
-        UUID viewerUuid = viewer.getUuid();
-        if (viewerUuid == null) {
-            return false;
-        }
-
-        ViewerDeliveryState state = viewerStates.get(viewerUuid);
-        if (state == null) {
-            return false;
-        }
-
-        boolean nextBatchReady = state.advancePhase();
-        if (!nextBatchReady) {
-            return false;
-        }
-
-        try {
-            var packetHandler = viewer.getPacketHandler();
-            if (packetHandler == null) {
-                state.discardPendingBatches();
-                return false;
-            }
-            packetHandler.writeNoCache(new RequestCommonAssetsRebuild());
-            return true;
-        } catch (RuntimeException exception) {
-            state.discardPendingBatches();
-            return false;
-        }
+        return viewerAssetDelivery.advanceViewerDeliveryPhase(viewer);
     }
 
     void prefetch(UUID subjectId, String username) {
@@ -94,6 +59,7 @@ final class PlayerAvatarAvatarService {
     String ensureAvatarForViewer(PlayerRef viewer,
                                  UUID subjectId,
                                  String username,
+                                 boolean ghosted,
                                  Runnable onReady) {
         if (subjectId == null || username == null || username.isBlank()) {
             return FALLBACK_MARKER_IMAGE;
@@ -105,38 +71,14 @@ final class PlayerAvatarAvatarService {
             return FALLBACK_MARKER_IMAGE;
         }
 
-        PlayerAvatarAssetPack.writeAvatar(bundle.markerImagePath(), bundle.markerPng());
-        if (viewer == null) {
-            return bundle.markerImagePath();
+        String markerImagePath = ghosted ? bundle.ghostedMarkerImagePath() : bundle.markerImagePath();
+        byte[] markerPng = ghosted ? bundle.ghostedMarkerPng() : bundle.markerPng();
+        String assetPath = toUiAssetPath(markerImagePath);
+        if (viewer != null && assetPath != null) {
+            viewerAssetDelivery.deliver(viewer, assetPath, markerPng);
         }
-
-        UUID viewerUuid = viewer.getUuid();
-        String assetPath = toUiAssetPath(bundle.markerImagePath());
-        if (viewerUuid == null || assetPath == null || assetPath.isBlank()) {
-            return bundle.markerImagePath();
-        }
-
-        ViewerDeliveryState deliveryState = viewerStates.computeIfAbsent(viewerUuid, ignored -> new ViewerDeliveryState());
-        if (deliveryState.isDelivered(assetPath)) {
-            return bundle.markerImagePath();
-        }
-
-        DeliveryReservation reservation = deliveryState.reserve(Set.of(assetPath));
-        if (reservation.assetPaths().isEmpty()) {
-            return bundle.markerImagePath();
-        }
-
-        boolean delivered = PlayerAvatarAssetPublisher.deliver(
-                viewer,
-                assetPath,
-                bundle.markerPng(),
-                reservation.rebuildRequired());
-        if (!delivered) {
-            deliveryState.discardPendingBatches();
-            return bundle.markerImagePath();
-        }
-
-        return bundle.markerImagePath();
+        PlayerAvatarAssetPack.writeAvatar(markerImagePath, markerPng);
+        return markerImagePath;
     }
 
     static String toUiAssetPath(String markerImage) {
@@ -155,24 +97,30 @@ final class PlayerAvatarAvatarService {
         return markerImage == null || markerImage.isBlank() || FALLBACK_MARKER_IMAGE.equals(markerImage);
     }
 
-    BufferedImage resolveMinimapIcon(UUID subjectId, String username) {
+    BufferedImage resolveMinimapIcon(UUID subjectId, String username, boolean ghosted) {
         if (subjectId == null || username == null || username.isBlank()) {
-            return fallbackIcon;
+            return ghosted ? fallbackGhostedIcon : fallbackIcon;
         }
 
         AvatarBundle cached = avatarBundles.get(subjectId);
-        if (cached != null && cached.icon() != null) {
-            return cached.icon();
+        if (cached != null) {
+            BufferedImage cachedIcon = ghosted ? cached.ghostedIcon() : cached.icon();
+            if (cachedIcon != null) {
+                return cachedIcon;
+            }
         }
 
         CompletableFuture<AvatarBundle> future = resolveAvatarBundle(subjectId, username);
         if (future.isDone() && !future.isCompletedExceptionally()) {
             AvatarBundle bundle = future.getNow(null);
-            if (bundle != null && bundle.icon() != null) {
-                return bundle.icon();
+            if (bundle != null) {
+                BufferedImage readyIcon = ghosted ? bundle.ghostedIcon() : bundle.icon();
+                if (readyIcon != null) {
+                    return readyIcon;
+                }
             }
         }
-        return fallbackIcon;
+        return ghosted ? fallbackGhostedIcon : fallbackIcon;
     }
 
     private CompletableFuture<AvatarBundle> resolveAvatarBundle(UUID subjectId, String username) {
@@ -187,6 +135,7 @@ final class PlayerAvatarAvatarService {
                     if (bundle != null) {
                         avatarBundles.put(subjectId, bundle);
                         PlayerAvatarAssetPack.writeAvatar(bundle.markerImagePath(), bundle.markerPng());
+                        PlayerAvatarAssetPack.writeAvatar(bundle.ghostedMarkerImagePath(), bundle.ghostedMarkerPng());
                     }
                     return bundle;
                 })
@@ -199,7 +148,7 @@ final class PlayerAvatarAvatarService {
         }
 
         PlayerAvatarConfig config = PlayerAvatarMarkerPlugin.getConfig();
-        int markerSize = Math.max(MIN_MARKER_AVATAR_SIZE, PlayerAvatarMarkerSupport.getAvatarSize(config));
+        int markerSize = Math.max(MIN_MARKER_AVATAR_SIZE, config != null ? config.avatarSize : 64);
         byte[] markerBytes = PlayerAvatarImageProcessor.process(
                 rawBytes,
                 markerSize,
@@ -207,6 +156,11 @@ final class PlayerAvatarAvatarService {
                 config == null || config.enableBackground);
         if (markerBytes == null || markerBytes.length == 0) {
             return null;
+        }
+
+        byte[] ghostedMarkerBytes = PlayerAvatarImageProcessor.applyOpacity(markerBytes, GHOSTED_ALPHA, true);
+        if (ghostedMarkerBytes == null || ghostedMarkerBytes.length == 0) {
+            ghostedMarkerBytes = markerBytes;
         }
 
         byte[] minimapBytes = PlayerAvatarImageProcessor.process(
@@ -219,12 +173,19 @@ final class PlayerAvatarAvatarService {
             minimapIcon = fallbackIcon;
         }
 
-        String markerImagePath = buildMarkerImagePath(subjectId, markerBytes);
-        if (markerImagePath == null || markerImagePath.isBlank()) {
+        byte[] ghostedMinimapBytes = PlayerAvatarImageProcessor.applyOpacity(minimapBytes, GHOSTED_ALPHA, true);
+        BufferedImage ghostedMinimapIcon = decodeImage(ghostedMinimapBytes);
+        if (ghostedMinimapIcon == null) {
+            ghostedMinimapIcon = fallbackGhostedIcon != null ? fallbackGhostedIcon : minimapIcon;
+        }
+
+        String markerImagePath = buildMarkerImagePath(subjectId, markerBytes, "normal");
+        String ghostedMarkerImagePath = buildMarkerImagePath(subjectId, ghostedMarkerBytes, "ghosted");
+        if (markerImagePath == null || markerImagePath.isBlank() || ghostedMarkerImagePath == null || ghostedMarkerImagePath.isBlank()) {
             return null;
         }
 
-        return new AvatarBundle(markerImagePath, markerBytes, minimapIcon);
+        return new AvatarBundle(markerImagePath, markerBytes, minimapIcon, ghostedMarkerImagePath, ghostedMarkerBytes, ghostedMinimapIcon);
     }
 
     private static BufferedImage decodeImage(byte[] pngBytes) {
@@ -258,14 +219,15 @@ final class PlayerAvatarAvatarService {
         return null;
     }
 
-    private static String buildMarkerImagePath(UUID subjectId, byte[] markerBytes) {
+    private static String buildMarkerImagePath(UUID subjectId, byte[] markerBytes, String variantToken) {
         if (subjectId == null || markerBytes == null || markerBytes.length == 0) {
             return null;
         }
 
         String uuidToken = subjectId.toString().replace("-", "");
         String contentKey = computeContentKey(markerBytes);
-        return "pam-" + uuidToken + "-" + contentKey.substring(0, Math.min(16, contentKey.length())) + ".png";
+        String variant = variantToken == null || variantToken.isBlank() ? "default" : variantToken;
+        return "pam-" + uuidToken + "-" + variant + "-" + contentKey.substring(0, Math.min(16, contentKey.length())) + ".png";
     }
 
     private static String computeContentKey(byte[] pngBytes) {
@@ -277,71 +239,12 @@ final class PlayerAvatarAvatarService {
         }
     }
 
-    private record DeliveryReservation(Set<String> assetPaths, boolean rebuildRequired) {
-    }
 
-    private static final class ViewerDeliveryState {
-
-        private final Set<String> deliveredAssets = ConcurrentHashMap.newKeySet();
-        private final LinkedHashMap<String, Boolean> activationBatch = new LinkedHashMap<>();
-        private final LinkedHashMap<String, Boolean> currentBatch = new LinkedHashMap<>();
-        private final LinkedHashMap<String, Boolean> queuedBatch = new LinkedHashMap<>();
-
-        private synchronized DeliveryReservation reserve(Collection<String> assetPaths) {
-            LinkedHashMap<String, Boolean> targetBatch = currentBatch.isEmpty() ? currentBatch : queuedBatch;
-            boolean rebuildRequired = targetBatch == currentBatch;
-            LinkedHashMap<String, Boolean> reserved = new LinkedHashMap<>();
-            for (String assetPath : assetPaths) {
-                if (assetPath == null
-                        || deliveredAssets.contains(assetPath)
-                        || activationBatch.containsKey(assetPath)
-                        || currentBatch.containsKey(assetPath)
-                        || queuedBatch.containsKey(assetPath)) {
-                    continue;
-                }
-
-                targetBatch.put(assetPath, Boolean.TRUE);
-                reserved.put(assetPath, Boolean.TRUE);
-            }
-
-            return new DeliveryReservation(Set.copyOf(reserved.keySet()), rebuildRequired && !reserved.isEmpty());
-        }
-
-        private synchronized boolean isDelivered(String assetPath) {
-            return deliveredAssets.contains(assetPath);
-        }
-
-        private synchronized boolean hasPendingAssets() {
-            return !activationBatch.isEmpty() || !currentBatch.isEmpty() || !queuedBatch.isEmpty();
-        }
-
-        private synchronized boolean advancePhase() {
-            if (!activationBatch.isEmpty()) {
-                deliveredAssets.addAll(activationBatch.keySet());
-                activationBatch.clear();
-            }
-
-            if (currentBatch.isEmpty()) {
-                return false;
-            }
-
-            activationBatch.putAll(currentBatch);
-            currentBatch.clear();
-            if (queuedBatch.isEmpty()) {
-                return false;
-            }
-
-            currentBatch.putAll(queuedBatch);
-            queuedBatch.clear();
-            return true;
-        }
-
-        private synchronized void discardPendingBatches() {
-            currentBatch.clear();
-            queuedBatch.clear();
-        }
-    }
-
-    private record AvatarBundle(String markerImagePath, byte[] markerPng, BufferedImage icon) {
+    private record AvatarBundle(String markerImagePath,
+                                byte[] markerPng,
+                                BufferedImage icon,
+                                String ghostedMarkerImagePath,
+                                byte[] ghostedMarkerPng,
+                                BufferedImage ghostedIcon) {
     }
 }

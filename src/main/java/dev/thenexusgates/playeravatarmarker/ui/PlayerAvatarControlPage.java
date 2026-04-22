@@ -15,22 +15,11 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class PlayerAvatarControlPage extends InteractiveCustomUIPage<PlayerAvatarControlPage.PageData> {
-
-    private enum SurfaceBulkState {
-        ALL_ENABLED,
-        ALL_DISABLED,
-        MIXED,
-        EMPTY
-    }
 
     static final class PageData {
         static final BuilderCodec<PageData> CODEC = BuilderCodec.builder(PageData.class, PageData::new)
@@ -38,20 +27,6 @@ final class PlayerAvatarControlPage extends InteractiveCustomUIPage<PlayerAvatar
                 .build();
 
         String action;
-    }
-
-    private record RowModel(UUID uuid,
-                            String playerName,
-                            String metaText,
-                            String assetPath,
-                            boolean self,
-                            boolean mapEnabled,
-                            boolean minimapEnabled,
-                            boolean compassEnabled,
-                            boolean customized) {
-    }
-
-    private record PageSlice(List<RowModel> rows, int pageIndex, int pageCount) {
     }
 
     private static final String UI_PAGE = "Pages/PlayerAvatarControl.ui";
@@ -176,20 +151,20 @@ final class PlayerAvatarControlPage extends InteractiveCustomUIPage<PlayerAvatar
             return;
         }
 
-        List<RowModel> rows = buildRows();
+        List<PlayerAvatarControlPageModels.RowModel> rows = buildRows();
         if (rows.isEmpty()) {
             plugin.getUiSounds().play(playerRef, PlayerAvatarUiSounds.Cue.NEGATIVE);
             return;
         }
 
-        if (bulkState(rows, surface) == SurfaceBulkState.EMPTY) {
+        if (bulkState(rows, surface) == PlayerAvatarControlPageModels.SurfaceBulkState.EMPTY) {
             plugin.getUiSounds().play(playerRef, PlayerAvatarUiSounds.Cue.NEGATIVE);
             refresh();
             return;
         }
 
         PlayerAvatarPlayerSettings settings = plugin.resolvePlayerSettings(playerRef);
-        boolean enable = bulkState(rows, surface) != SurfaceBulkState.ALL_ENABLED;
+        boolean enable = bulkState(rows, surface) != PlayerAvatarControlPageModels.SurfaceBulkState.ALL_ENABLED;
         settings.setAll(surface, enable);
         plugin.applyPlayerSettings(playerRef, settings);
         plugin.getUiSounds().play(playerRef, enable ? PlayerAvatarUiSounds.Cue.POSITIVE : PlayerAvatarUiSounds.Cue.NAVIGATE);
@@ -242,8 +217,8 @@ final class PlayerAvatarControlPage extends InteractiveCustomUIPage<PlayerAvatar
         bindClick(evt, "#PrevPageButton", "Page|Prev");
         bindClick(evt, "#NextPageButton", "Page|Next");
 
-        List<RowModel> rows = buildRows();
-        PageSlice page = pageSlice(rows, currentPage);
+        List<PlayerAvatarControlPageModels.RowModel> rows = buildRows();
+        PlayerAvatarControlPageModels.PageSlice page = PlayerAvatarControlPageModels.pageSlice(rows, currentPage, PAGE_SIZE);
         currentPage = page.pageIndex();
 
         cmd.set("#Title.Text", t("Player Avatar Control", "Керування аватарками гравців"));
@@ -293,22 +268,26 @@ final class PlayerAvatarControlPage extends InteractiveCustomUIPage<PlayerAvatar
         }
 
         int index = 0;
-        for (RowModel row : page.rows()) {
+        for (PlayerAvatarControlPageModels.RowModel row : page.rows()) {
             cmd.append(GROUP_ROOT, UI_ROW);
             String rowId = GROUP_ROOT + "[" + index++ + "]";
             boolean canToggleMinimap = isEligible(row, PlayerAvatarSurface.MINIMAP);
             boolean canToggleCompass = isEligible(row, PlayerAvatarSurface.COMPASS);
             cmd.set(rowId + " #PlayerName.Text", row.playerName());
             cmd.set(rowId + " #PlayerMeta.Text", row.metaText());
-            cmd.set(rowId + " #MapToggleButtonLabel.Text", toggleText(PlayerAvatarSurface.MAP, row.mapEnabled));
-            cmd.set(rowId + " #MinimapToggleButtonLabel.Text", toggleText(PlayerAvatarSurface.MINIMAP, row.minimapEnabled));
-            cmd.set(rowId + " #CompassToggleButtonLabel.Text", toggleText(PlayerAvatarSurface.COMPASS, row.compassEnabled));
-            cmd.set(rowId + " #MapToggleButton.Background", rowButtonBackground(PlayerAvatarSurface.MAP, row.mapEnabled));
-            cmd.set(rowId + " #MinimapToggleButton.Background", rowButtonBackground(PlayerAvatarSurface.MINIMAP, row.minimapEnabled));
-            cmd.set(rowId + " #CompassToggleButton.Background", rowButtonBackground(PlayerAvatarSurface.COMPASS, row.compassEnabled));
+            cmd.set(rowId + " #MapToggleButtonLabel.Text", toggleText(PlayerAvatarSurface.MAP, row.mapEnabled()));
+            cmd.set(rowId + " #MinimapToggleButtonLabel.Text", toggleText(PlayerAvatarSurface.MINIMAP, row.minimapEnabled()));
+            cmd.set(rowId + " #CompassToggleButtonLabel.Text", toggleText(PlayerAvatarSurface.COMPASS, row.compassEnabled()));
+            cmd.set(rowId + " #MapToggleButton.Background", rowButtonBackground(PlayerAvatarSurface.MAP, row.mapEnabled()));
+            cmd.set(rowId + " #MinimapToggleButton.Background", rowButtonBackground(PlayerAvatarSurface.MINIMAP, row.minimapEnabled()));
+            cmd.set(rowId + " #CompassToggleButton.Background", rowButtonBackground(PlayerAvatarSurface.COMPASS, row.compassEnabled()));
             cmd.set(rowId + " #MinimapToggleButton.Visible", canToggleMinimap);
             cmd.set(rowId + " #CompassToggleButton.Visible", canToggleCompass);
-            cmd.set(rowId + " #RowAccent.Background", row.self() ? "#d4a843" : row.mapEnabled || row.minimapEnabled || row.compassEnabled ? "#6f86a8" : "#5a3f46");
+            cmd.set(rowId + " #RowAccent.Background", row.visibilityState().isGhosted()
+                    ? "#9d7fd1"
+                    : row.self() ? "#d4a843" : row.mapEnabled() || row.minimapEnabled() || row.compassEnabled() ? "#6f86a8" : "#5a3f46");
+            cmd.set(rowId + " #VisibilityBadge.Text", row.visibilityBadge());
+            cmd.set(rowId + " #VisibilityBadge.Visible", row.visibilityBadge() != null && !row.visibilityBadge().isBlank());
             bindClick(evt, rowId + " #MapToggleButton", "Toggle|" + row.uuid() + "|MAP");
             if (canToggleMinimap) {
                 bindClick(evt, rowId + " #MinimapToggleButton", "Toggle|" + row.uuid() + "|MINIMAP");
@@ -325,8 +304,8 @@ final class PlayerAvatarControlPage extends InteractiveCustomUIPage<PlayerAvatar
         }
     }
 
-    private void applyBulkButton(UICommandBuilder cmd, String selector, List<RowModel> rows, PlayerAvatarSurface surface) {
-        SurfaceBulkState state = bulkState(rows, surface);
+    private void applyBulkButton(UICommandBuilder cmd, String selector, List<PlayerAvatarControlPageModels.RowModel> rows, PlayerAvatarSurface surface) {
+        PlayerAvatarControlPageModels.SurfaceBulkState state = bulkState(rows, surface);
         cmd.set(selector + ".Background", switch (state) {
             case ALL_ENABLED -> BULK_GREEN;
             case ALL_DISABLED -> BULK_RED;
@@ -335,116 +314,24 @@ final class PlayerAvatarControlPage extends InteractiveCustomUIPage<PlayerAvatar
         });
     }
 
-    private List<RowModel> buildRows() {
-        List<PlayerRef> players = new ArrayList<>(plugin.getActivePlayers());
-        if (plugin.getAvatarService() != null) {
-            plugin.getAvatarService().advanceViewerDeliveryPhase(playerRef);
-        }
-        UUID viewerUuid = playerRef == null ? null : playerRef.getUuid();
-        players.sort(Comparator
-                .comparing((PlayerRef ref) -> !isSelf(ref, viewerUuid))
-                .thenComparing(ref -> safeName(ref).toLowerCase(Locale.ROOT)));
-
-        PlayerAvatarPlayerSettings settings = plugin.resolvePlayerSettings(playerRef);
-        List<RowModel> rows = new ArrayList<>(players.size());
-        for (PlayerRef ref : players) {
-            UUID uuid = ref.getUuid();
-            if (uuid == null) {
-                continue;
-            }
-
-            String playerName = safeName(ref);
-            PlayerAvatarMarkerSupport.AvatarVisual visual =
-                    PlayerAvatarMarkerSupport.resolveAvatarVisual(playerRef, uuid, playerName, this::queueRefresh);
-            String assetPath = PlayerAvatarMarkerSupport.toUiAssetPath(visual.markerImage());
-            boolean self = isSelf(ref, viewerUuid);
-            boolean customized = settings.hasAnyOverride(uuid);
-            String metaText = self
-                    ? customized ? t("You · Map only", "Ви · лише мапа") : t("You · Hidden on minimap and compass", "Ви · приховано на мінімапі та компасі")
-                    : customized ? t("Custom visibility", "Індивідуальна видимість") : t("Uses bulk defaults", "Використовує загальні налаштування");
-            rows.add(new RowModel(
-                    uuid,
-                    playerName,
-                    metaText,
-                    assetPath,
-                    self,
-                    settings.isEnabledFor(PlayerAvatarSurface.MAP, viewerUuid, uuid),
-                    settings.isEnabledFor(PlayerAvatarSurface.MINIMAP, viewerUuid, uuid),
-                    settings.isEnabledFor(PlayerAvatarSurface.COMPASS, viewerUuid, uuid),
-                    customized));
-        }
-
-        if (plugin.getAvatarService() != null && plugin.getAvatarService().hasPendingAssets(viewerUuid)) {
-            queueRefresh();
-        }
-        return rows;
+    private List<PlayerAvatarControlPageModels.RowModel> buildRows() {
+        return PlayerAvatarControlPageModels.buildRows(playerRef, plugin, this::queueRefresh, this::queueRefresh);
     }
 
-    private PageSlice pageSlice(List<RowModel> rows, int requestedPage) {
-        int total = rows.size();
-        int pageCount = total == 0 ? 1 : (int) Math.ceil(total / (double) PAGE_SIZE);
-        int pageIndex = total == 0 ? 0 : Math.max(0, Math.min(requestedPage, pageCount - 1));
-        if (total == 0) {
-            return new PageSlice(List.of(), pageIndex, pageCount);
-        }
-
-        int fromIndex = pageIndex * PAGE_SIZE;
-        int toIndex = Math.min(fromIndex + PAGE_SIZE, total);
-        return new PageSlice(rows.subList(fromIndex, toIndex), pageIndex, pageCount);
+    private int countEnabled(List<PlayerAvatarControlPageModels.RowModel> rows, PlayerAvatarSurface surface) {
+        return PlayerAvatarControlPageModels.countEnabled(rows, surface, playerRef.getUuid());
     }
 
-    private int countEnabled(List<RowModel> rows, PlayerAvatarSurface surface) {
-        int enabledCount = 0;
-        for (RowModel row : rows) {
-            if (isEnabled(row, surface)) {
-                enabledCount++;
-            }
-        }
-        return enabledCount;
+    private PlayerAvatarControlPageModels.SurfaceBulkState bulkState(List<PlayerAvatarControlPageModels.RowModel> rows, PlayerAvatarSurface surface) {
+        return PlayerAvatarControlPageModels.bulkState(rows, surface, playerRef.getUuid());
     }
 
-    private SurfaceBulkState bulkState(List<RowModel> rows, PlayerAvatarSurface surface) {
-        if (rows.isEmpty()) {
-            return SurfaceBulkState.EMPTY;
-        }
-
-        int enabledCount = countEnabled(rows, surface);
-        int eligibleCount = countEligible(rows, surface);
-        if (eligibleCount == 0) {
-            return SurfaceBulkState.EMPTY;
-        }
-        if (enabledCount == 0) {
-            return SurfaceBulkState.ALL_DISABLED;
-        }
-        if (enabledCount == eligibleCount) {
-            return SurfaceBulkState.ALL_ENABLED;
-        }
-        return SurfaceBulkState.MIXED;
+    private int countEligible(List<PlayerAvatarControlPageModels.RowModel> rows, PlayerAvatarSurface surface) {
+        return PlayerAvatarControlPageModels.countEligible(rows, surface, playerRef.getUuid());
     }
 
-    private int countEligible(List<RowModel> rows, PlayerAvatarSurface surface) {
-        int eligibleCount = 0;
-        for (RowModel row : rows) {
-            if (isEligible(row, surface)) {
-                eligibleCount++;
-            }
-        }
-        return eligibleCount;
-    }
-
-    private boolean isEnabled(RowModel row, PlayerAvatarSurface surface) {
-        if (!isEligible(row, surface)) {
-            return false;
-        }
-        return switch (surface) {
-            case MAP -> row.mapEnabled;
-            case MINIMAP -> row.minimapEnabled;
-            case COMPASS -> row.compassEnabled;
-        };
-    }
-
-    private boolean isEligible(RowModel row, PlayerAvatarSurface surface) {
-        return row != null && !PlayerAvatarPlayerSettings.isSelfForcedHidden(surface, playerRef.getUuid(), row.uuid());
+    private boolean isEligible(PlayerAvatarControlPageModels.RowModel row, PlayerAvatarSurface surface) {
+        return PlayerAvatarControlPageModels.isEligible(row, surface, playerRef.getUuid());
     }
 
     private String toggleText(PlayerAvatarSurface surface, boolean enabled) {
@@ -473,21 +360,6 @@ final class PlayerAvatarControlPage extends InteractiveCustomUIPage<PlayerAvatar
         return "#b88a3e";
     }
 
-    private String safeName(PlayerRef ref) {
-        if (ref == null) {
-            return t("Unknown player", "Невідомий гравець");
-        }
-        String playerName = ref.getUsername();
-        if (playerName == null || playerName.isBlank()) {
-            UUID uuid = ref.getUuid();
-            return uuid != null ? uuid.toString().substring(0, 8) : t("Unknown player", "Невідомий гравець");
-        }
-        return playerName;
-    }
-
-    private boolean isSelf(PlayerRef ref, UUID viewerUuid) {
-        return ref != null && viewerUuid != null && viewerUuid.equals(ref.getUuid());
-    }
 
     private void bindClick(UIEventBuilder evt, String selector, String action) {
         evt.addEventBinding(CustomUIEventBindingType.Activating, selector, EventData.of("Action", action), false);

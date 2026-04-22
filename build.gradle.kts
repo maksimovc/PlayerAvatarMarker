@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dev.thenexusgates"
-version = "1.4.1"
+version = "1.5.0"
 
 repositories {
     mavenCentral()
@@ -30,10 +30,18 @@ dependencies {
     if (fastMiniMapJar != null && fastMiniMapJar.exists()) {
         add("compileOnly", files(fastMiniMapJar))
     }
+
+    testImplementation(platform("org.junit:junit-bom:5.12.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.jar {

@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentMap;
 public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     static final String PROVIDER_KEY = "playerIcons";
-    private static final String VERSION = "1.4.1";
 
     private static PlayerAvatarMarkerPlugin instance;
     private static PlayerAvatarConfig config;
@@ -44,11 +43,17 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
     }
 
     public Collection<PlayerRef> getActivePlayers() {
-        return activePlayers.values();
+        Collection<PlayerRef> livePlayers = resolveLivePlayers();
+        return livePlayers.isEmpty() ? activePlayers.values() : livePlayers;
     }
 
     public PlayerRef getActivePlayerRef(UUID playerUuid) {
-        return playerUuid != null ? activePlayers.get(playerUuid) : null;
+        if (playerUuid == null) {
+            return null;
+        }
+
+        PlayerRef liveRef = resolveLivePlayerRef(playerUuid);
+        return liveRef != null ? liveRef : activePlayers.get(playerUuid);
     }
 
     public PlayerAvatarUiSounds getUiSounds() {
@@ -77,13 +82,27 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
         uiSounds = new PlayerAvatarUiSounds();
         getCommandRegistry().registerCommand(new PlayerAvatarControlCommand(this));
 
+        registerProvidersForLoadedWorlds();
+        registerEventHandlers();
+
+        if (FastMiniMapCompat.isAvailable()) {
+            fastMiniMapCompatService = new FastMiniMapCompatService();
+            fastMiniMapCompatService.register();
+        }
+    }
+
+    private void registerProvidersForLoadedWorlds() {
         Universe universe = Universe.get();
-        if (universe != null) {
-            for (World world : universe.getWorlds().values()) {
-                registerProvider(world);
-            }
+        if (universe == null) {
+            return;
         }
 
+        for (World world : universe.getWorlds().values()) {
+            registerProvider(world);
+        }
+    }
+
+    private void registerEventHandlers() {
         getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, event -> {
             World world = event.getWorld();
             if (world != null) {
@@ -115,8 +134,9 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             if (avatarService != null && ref != null) {
                 avatarService.clearViewer(ref.getUuid());
             }
-            PlayerAvatarMarkerSupport.ensureRenderablePlayerModel(ref);
+            PlayerAvatarPlayerModelSupport.ensureRenderable(ref);
             warmAvatarForPlayer(ref);
+            warmKnownAvatarsForViewer(ref);
         });
 
         getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, event -> {
@@ -134,11 +154,6 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             }
             PlayerAvatarMarkerProvider.removePersistedAvatar(uuid);
         });
-
-        if (FastMiniMapCompat.isAvailable()) {
-            fastMiniMapCompatService = new FastMiniMapCompatService();
-            fastMiniMapCompatService.register();
-        }
     }
 
     private void registerProvider(World world) {
@@ -176,9 +191,7 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             return;
         }
 
-        boolean removed = providers.entrySet().removeIf(entry -> isVanillaOtherPlayersProvider(entry.getValue()));
-        if (removed) {
-        }
+        providers.entrySet().removeIf(entry -> isVanillaOtherPlayersProvider(entry.getValue()));
     }
 
     private boolean isVanillaOtherPlayersProvider(WorldMapManager.MarkerProvider provider) {
@@ -192,6 +205,7 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
         if (fastMiniMapCompatService != null) {
             fastMiniMapCompatService.unregister();
         }
+        PlayerAvatarLiveTracker.shutdown();
         activePlayers.clear();
     }
 
@@ -247,6 +261,59 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
         }
     }
 
+    private Collection<PlayerRef> resolveLivePlayers() {
+        Universe universe = Universe.get();
+        if (universe == null) {
+            return java.util.List.of();
+        }
+
+        java.util.List<PlayerRef> players = universe.getPlayers();
+        if (players == null || players.isEmpty()) {
+            return java.util.List.of();
+        }
+
+        java.util.ArrayList<PlayerRef> livePlayers = new java.util.ArrayList<>(players.size());
+        for (PlayerRef ref : players) {
+            if (ref == null) {
+                continue;
+            }
+
+            UUID uuid = ref.getUuid();
+            if (uuid != null) {
+                activePlayers.put(uuid, ref);
+            }
+            livePlayers.add(ref);
+        }
+        return livePlayers;
+    }
+
+    private PlayerRef resolveLivePlayerRef(UUID playerUuid) {
+        if (playerUuid == null) {
+            return null;
+        }
+
+        Universe universe = Universe.get();
+        if (universe == null) {
+            return null;
+        }
+
+        java.util.List<PlayerRef> players = universe.getPlayers();
+        if (players == null || players.isEmpty()) {
+            return null;
+        }
+
+        for (PlayerRef ref : players) {
+            if (ref == null || !playerUuid.equals(ref.getUuid())) {
+                continue;
+            }
+
+            activePlayers.put(playerUuid, ref);
+            return ref;
+        }
+
+        return null;
+    }
+
     private void warmAvatarForPlayer(PlayerRef ref) {
         if (ref == null) return;
         java.util.UUID uuid = ref.getUuid();
@@ -259,6 +326,31 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             avatarService.prefetch(uuid, username);
         } else {
             PlayerAvatarCache.getOrFetch(uuid, username);
+        }
+    }
+
+    private void warmKnownAvatarsForViewer(PlayerRef viewerRef) {
+        if (viewerRef == null || avatarService == null) {
+            return;
+        }
+
+        UUID viewerUuid = viewerRef.getUuid();
+        for (PlayerRef ref : activePlayers.values()) {
+            if (ref == null) {
+                continue;
+            }
+
+            UUID uuid = ref.getUuid();
+            String username = ref.getUsername();
+            if (uuid == null || username == null || username.isBlank()) {
+                continue;
+            }
+
+            if (viewerUuid != null && viewerUuid.equals(uuid)) {
+                continue;
+            }
+
+            avatarService.prefetch(uuid, username);
         }
     }
 }

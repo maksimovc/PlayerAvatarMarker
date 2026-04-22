@@ -2,7 +2,9 @@
 
 PlayerAvatarMarker is a Hytale server mod that replaces the generic player dot with each player's avatar portrait on the large world map and, when companion mods are present, on FastMiniMap and BetterMap surfaces as well.
 
-The current 1.4.1 release includes the built-in control UI, per-player visibility profiles, generated static marker overrides, and the newer plugin data layout under `plugins/PlayerAvatarMarker`.
+The current 1.5.0 release includes the built-in control UI, per-player visibility profiles, generated static marker overrides, the newer plugin data layout under `plugins/PlayerAvatarMarker`, and improved vanish compatibility for HyEssentialsX.
+
+For the source-code layout and responsibility map, see [`ARCHITECTURE.md`](ARCHITECTURE.md). For release notes, see [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Features
 
@@ -16,10 +18,12 @@ The current 1.4.1 release includes the built-in control UI, per-player visibilit
 - Built-in `/playeravatar` control UI with per-surface global toggles and per-player overrides
 - Online player list with avatar preview and nickname inside the control page
 - Configurable nickname visibility, avatar size, facing rotation, and background styling
+- Better handling for vanished viewers/targets across EliteEssentials, EssentialsPlus, and HyEssentialsX
+- Reduced marker-asset race conditions when dynamic avatar marker images are generated on the fly
 
 ## Installation
 
-1. Copy `PlayerAvatarMarker-1.4.1.jar` to `UserData/Saves/<YourWorld>/mods/`
+1. Copy `PlayerAvatarMarker-1.5.0.jar` to `UserData/Saves/<YourWorld>/mods/`
 2. Start the server
 
 PlayerAvatarMarker is a normal Hytale mod jar and belongs in the world's `mods/` folder. On first start it also creates the companion asset-pack directory `PlayerAvatarMarkerAssets` automatically for static world-map marker overrides.
@@ -67,7 +71,7 @@ cd PlayerAvatarMarker
 gradlew.bat build
 ```
 
-Output: `build/libs/PlayerAvatarMarker-1.4.1.jar`
+Output: `build/libs/PlayerAvatarMarker-1.5.0.jar`
 
 ## Requirements
 
@@ -84,12 +88,19 @@ Output: `build/libs/PlayerAvatarMarker-1.4.1.jar`
 - Compass toggle permission: `playeravatarmarker.settings.compass`
 - Admin bypass: `playeravatarmarker.admin`
 
-## 1.4.1 Highlights
+## 1.5.0 Highlights
 
-- Ships with the built-in PlayerAvatarMarker control UI
-- Persists per-player visibility profiles under `plugins/PlayerAvatarMarker/player-settings`
-- Uses disk-backed avatar caching under `plugins/PlayerAvatarMarker/avatar-cache`
-- Generates and maintains static world-map marker override assets in `mods/PlayerAvatarMarkerAssets`
+- HyEssentialsX vanished players are now resolved correctly for vanished viewers across map, minimap, compass, and `/playeravatar`
+- Live `PlayerRef` lookup now prefers the current `Universe` state instead of relying only on cached ready-time references
+- Dynamic avatar marker assets are now written and pushed earlier to reduce `pam-... doesn't exist!` warnings in client logs
+- Generated asset-pack metadata is aligned with the new 1.5.0 release
+
+## Short changelog
+
+- fixed HyEssentialsX `/vanish` compatibility for vanished-to-vanished visibility
+- fixed stale player-reference lookups that could affect UI and marker visibility state
+- improved dynamic marker asset publishing so normal/ghosted avatar images become available sooner
+- bumped release version to `1.5.0`
 
 ## License
 

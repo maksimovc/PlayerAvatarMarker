@@ -76,6 +76,50 @@ final class PlayerAvatarImageProcessor {
         }
     }
 
+    static byte[] applyOpacity(byte[] sourcePng, float alphaMultiplier, boolean addHiddenBadge) {
+        if (sourcePng == null || sourcePng.length == 0) {
+            return sourcePng;
+        }
+
+        try {
+            BufferedImage source = ImageIO.read(new ByteArrayInputStream(sourcePng));
+            if (source == null) {
+                return sourcePng;
+            }
+
+            BufferedImage out = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = out.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.drawImage(source, 0, 0, null);
+            g.dispose();
+
+            float normalizedAlpha = Math.max(0.0f, Math.min(alphaMultiplier, 1.0f));
+            for (int y = 0; y < out.getHeight(); y++) {
+                for (int x = 0; x < out.getWidth(); x++) {
+                    int argb = out.getRGB(x, y);
+                    int alpha = (argb >>> 24) & 0xFF;
+                    if (alpha == 0) {
+                        continue;
+                    }
+
+                    int rgb = argb & 0x00FFFFFF;
+                    int fadedAlpha = Math.round(alpha * normalizedAlpha);
+                    out.setRGB(x, y, (fadedAlpha << 24) | rgb);
+                }
+            }
+
+            if (addHiddenBadge) {
+                paintHiddenBadge(out);
+            }
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(out, "PNG", baos);
+            return baos.toByteArray();
+        } catch (IOException e) {
+            return sourcePng;
+        }
+    }
+
     static byte[] createFallbackMarkerPng(int size) {
         try {
             int iconSize = Math.max(16, size);
@@ -115,6 +159,30 @@ final class PlayerAvatarImageProcessor {
             return baos.toByteArray();
         } catch (IOException e) {
             return createTransparentPng();
+        }
+    }
+
+    private static void paintHiddenBadge(BufferedImage image) {
+        if (image == null) {
+            return;
+        }
+
+        Graphics2D g = image.createGraphics();
+        try {
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            int size = Math.max(6, Math.min(image.getWidth(), image.getHeight()) / 3);
+            int inset = Math.max(1, image.getWidth() / 16);
+            int x = image.getWidth() - size - inset;
+            int y = image.getHeight() - size - inset;
+
+            g.setColor(new Color(20, 28, 40, 180));
+            g.fillOval(x, y, size, size);
+            g.setColor(new Color(222, 235, 247, 210));
+            g.setStroke(new BasicStroke(Math.max(1.25f, size / 7f), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.drawOval(x, y, size, size);
+            g.drawLine(x + Math.max(1, size / 4), y + size - Math.max(1, size / 4), x + size - Math.max(1, size / 4), y + Math.max(1, size / 4));
+        } finally {
+            g.dispose();
         }
     }
 }

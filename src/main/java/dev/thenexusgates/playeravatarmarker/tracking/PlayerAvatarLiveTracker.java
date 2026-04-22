@@ -4,8 +4,10 @@ import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.Direction;
+import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.packets.player.ClientMovement;
 import com.hypixel.hytale.server.core.io.adapter.PacketAdapters;
+import com.hypixel.hytale.server.core.io.adapter.PacketFilter;
 import com.hypixel.hytale.server.core.io.adapter.PlayerPacketWatcher;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 
@@ -13,11 +15,13 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 final class PlayerAvatarLiveTracker {
 
     private static final ConcurrentMap<UUID, LiveSnapshot> SNAPSHOTS = new ConcurrentHashMap<>();
     private static final AtomicBoolean REGISTERED = new AtomicBoolean(false);
+    private static final AtomicReference<PacketFilter> FILTER_REF = new AtomicReference<>();
 
     private PlayerAvatarLiveTracker() {}
 
@@ -26,7 +30,7 @@ final class PlayerAvatarLiveTracker {
             return;
         }
 
-        PacketAdapters.registerInbound((PlayerPacketWatcher) (playerRef, packet) -> {
+        PacketFilter filter = PacketAdapters.registerInbound((PlayerPacketWatcher) (playerRef, packet) -> {
             if (!(packet instanceof ClientMovement movement) || playerRef == null) {
                 return;
             }
@@ -36,21 +40,27 @@ final class PlayerAvatarLiveTracker {
                 return;
             }
 
-            // Track only rotation from ClientMovement; position is resolved
-            // from ref.getTransform() (server-authoritative) to avoid stale snapshots.
-            // The client frequently sends rotation-only packets where absolutePosition
-            // is null, which left the cached position stale and caused MapMarkerTracker
-            // to suppress UpdateWorldMap delivery (no apparent change detected).
+            Vector3d position = toPosition(movement.absolutePosition);
             Vector3f lookRotation = toRotation(movement.lookOrientation);
             Vector3f bodyRotation = toRotation(movement.bodyOrientation);
             Vector3f rotation = lookRotation != null ? lookRotation : bodyRotation;
 
-            if (rotation == null) {
+            if (position == null && rotation == null) {
                 return;
             }
 
-            SNAPSHOTS.compute(playerUuid, (ignored, existing) -> merge(existing, rotation));
+            SNAPSHOTS.compute(playerUuid, (ignored, existing) -> merge(existing, position, rotation));
         });
+        FILTER_REF.set(filter);
+    }
+
+    static void shutdown() {
+        PacketFilter filter = FILTER_REF.getAndSet(null);
+        if (filter != null) {
+            PacketAdapters.deregisterInbound(filter);
+        }
+        SNAPSHOTS.clear();
+        REGISTERED.set(false);
     }
 
     static void remove(UUID playerUuid) {
@@ -62,6 +72,11 @@ final class PlayerAvatarLiveTracker {
     static Vector3d resolvePosition(PlayerRef ref) {
         if (ref == null) {
             return null;
+        }
+
+        LiveSnapshot snapshot = snapshot(ref.getUuid());
+        if (snapshot != null && snapshot.position() != null) {
+            return new Vector3d(snapshot.position());
         }
 
         Transform transform = ref.getTransform();
@@ -100,11 +115,18 @@ final class PlayerAvatarLiveTracker {
         return playerUuid != null ? SNAPSHOTS.get(playerUuid) : null;
     }
 
-    private static LiveSnapshot merge(LiveSnapshot existing, Vector3f rotation) {
+    private static LiveSnapshot merge(LiveSnapshot existing, Vector3d position, Vector3f rotation) {
+        Vector3d mergedPosition = position != null
+                ? new Vector3d(position)
+                : existing != null && existing.position() != null ? new Vector3d(existing.position()) : null;
         Vector3f mergedRotation = rotation != null
-                ? rotation
+                ? new Vector3f(rotation)
                 : existing != null && existing.rotation() != null ? new Vector3f(existing.rotation()) : null;
-        return new LiveSnapshot(mergedRotation);
+        return new LiveSnapshot(mergedPosition, mergedRotation);
+    }
+
+    private static Vector3d toPosition(Position position) {
+        return position != null ? new Vector3d(position.x, position.y, position.z) : null;
     }
 
     private static Vector3f toRotation(Direction direction) {
@@ -119,5 +141,5 @@ final class PlayerAvatarLiveTracker {
         return rotation;
     }
 
-    private record LiveSnapshot(Vector3f rotation) {}
+    private record LiveSnapshot(Vector3d position, Vector3f rotation) {}
 }

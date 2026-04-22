@@ -1,10 +1,8 @@
 package dev.thenexusgates.playeravatarmarker;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 
@@ -41,26 +39,16 @@ final class PlayerAvatarStorage {
             }
 
             try {
-                Path pluginLocation = Paths.get(PlayerAvatarMarkerPlugin.class
-                        .getProtectionDomain()
-                        .getCodeSource()
-                        .getLocation()
-                        .toURI());
-                Path modsDirectory = Files.isDirectory(pluginLocation)
-                        ? pluginLocation
-                        : pluginLocation.getParent();
-                Path worldRoot = modsDirectory != null ? modsDirectory.getParent() : null;
+                Path modsDirectory = PlayerAvatarPaths.resolveModsDirectory(PlayerAvatarMarkerPlugin.class);
                 Path legacyPackRoot = modsDirectory != null ? modsDirectory.resolve("PlayerAvatarMarkerAssets") : null;
 
-                dataRoot = worldRoot == null
-                        ? Paths.get("PlayerAvatarMarker")
-                        : worldRoot.resolve("plugins").resolve("PlayerAvatarMarker");
+                dataRoot = PlayerAvatarPaths.resolvePluginDataRoot(PlayerAvatarMarkerPlugin.class, "PlayerAvatarMarker");
 
                 Files.createDirectories(dataRoot);
                 migrateLegacyData(legacyPackRoot);
                 cleanupLegacyAssetPack(legacyPackRoot);
                 initialized = true;
-            } catch (IOException | URISyntaxException exception) {
+            } catch (IOException exception) {
                 throw new IllegalStateException("Failed to initialize PlayerAvatarMarker storage", exception);
             }
         }

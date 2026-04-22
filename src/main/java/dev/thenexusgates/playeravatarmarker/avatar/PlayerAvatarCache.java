@@ -18,7 +18,7 @@ final class PlayerAvatarCache {
     private static final String HYVATAR_BASE_URL = "https://hyvatar.io/render/";
     private static final long DISK_CACHE_TTL_MS = Duration.ofHours(12).toMillis();
     private static final long FETCH_FAILURE_COOLDOWN_MS = Duration.ofSeconds(30).toMillis();
-    private static final int MIN_FETCH_SIZE = 128;
+    private static final int MIN_FETCH_SIZE = 64;
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
@@ -63,9 +63,6 @@ final class PlayerAvatarCache {
                 }));
     }
 
-    static void invalidate(UUID uuid) {
-        cache.remove(uuid);
-    }
 
     static String buildRenderUrl(String username, int size) {
         if (username == null || username.isBlank()) {

@@ -5,22 +5,16 @@ import com.hypixel.hytale.common.plugin.PluginManifest;
 import com.hypixel.hytale.common.semver.Semver;
 import com.hypixel.hytale.protocol.packets.setup.RequestCommonAssetsRebuild;
 import com.hypixel.hytale.server.core.asset.AssetModule;
-import com.hypixel.hytale.server.core.asset.common.CommonAsset;
 import com.hypixel.hytale.server.core.asset.common.CommonAssetModule;
 import com.hypixel.hytale.server.core.asset.common.asset.FileCommonAsset;
-import com.hypixel.hytale.server.core.io.PacketHandler;
 import com.hypixel.hytale.server.core.universe.Universe;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class PlayerAvatarAssetPack {
@@ -28,7 +22,7 @@ final class PlayerAvatarAssetPack {
     private static final String PACK_ID = "thenexusgates:PlayerAvatarMarkerAssets";
     private static final String PACK_GROUP = "thenexusgates";
     private static final String PACK_NAME = "PlayerAvatarMarkerAssets";
-    private static final String PACK_VERSION = "1.4.1";
+    private static final String PACK_VERSION = "1.5.0";
     private static final String TARGET_SERVER_VERSION = "2026.03.26-89796e57b";
     private static final String FALLBACK_MARKER_IMAGE = "pam-placeholder.png";
     private static final String MARKER_ASSET_PREFIX = "UI/WorldMap/MapMarkers/";
@@ -40,7 +34,7 @@ final class PlayerAvatarAssetPack {
             {
               "Group": "thenexusgates",
               "Name": "PlayerAvatarMarkerAssets",
-                                                                                                                                                                                                                                "Version": "1.4.1",
+              "Version": "1.5.0",
               "Description": "Generated avatar overrides for world map marker icons",
               "Authors": [
                 {
@@ -56,6 +50,7 @@ final class PlayerAvatarAssetPack {
             """;
 
     private static final ConcurrentHashMap<String, FileCommonAsset> pushedAssets = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Boolean> writtenAvatarAssets = new ConcurrentHashMap<>();
     private static final List<String> MIGRATED_DATA_ENTRIES = List.of(
             "playeravatarmarker-config.json",
             "player-settings"
@@ -73,36 +68,6 @@ final class PlayerAvatarAssetPack {
         registerPackIfNeeded();
     }
 
-    static Path getPackRoot() {
-        ensureInitialized();
-        return packRoot;
-    }
-
-    static Path getDataRoot() {
-        ensureInitialized();
-        return dataRoot;
-    }
-
-    static String getImagePath(UUID playerUuid) {
-        return "pam-" + playerUuid.toString().replace("-", "") + ".png";
-    }
-
-    static String getFallbackImagePath() {
-        return FALLBACK_MARKER_IMAGE;
-    }
-
-    static String toUiAssetPath(String imagePath) {
-        if (imagePath == null || imagePath.isBlank()) {
-            return null;
-        }
-        return MARKER_ASSET_PREFIX + imagePath;
-    }
-
-    static void writeAvatar(UUID playerUuid, byte[] pngBytes) {
-        if (pngBytes == null || pngBytes.length == 0) return;
-        writeAvatar(getImagePath(playerUuid), pngBytes);
-    }
-
     static void writeAvatar(String slotImage, byte[] pngBytes) {
         ensureInitialized();
         registerPackIfNeeded();
@@ -110,12 +75,17 @@ final class PlayerAvatarAssetPack {
             return;
         }
 
+        if (writtenAvatarAssets.containsKey(slotImage)) {
+            return;
+        }
+
         try {
             Path output = packRoot.resolve("Common/UI/WorldMap/MapMarkers").resolve(slotImage);
-            if (!writeBytesIfChanged(output, pngBytes)) {
-                return;
+            boolean changed = writeBytesIfChanged(output, pngBytes);
+            if (changed) {
+                pushAssetToClients(MARKER_ASSET_PREFIX + slotImage, pngBytes, output);
             }
-            pushAssetToClients(MARKER_ASSET_PREFIX + slotImage, pngBytes, output);
+            writtenAvatarAssets.put(slotImage, Boolean.TRUE);
         } catch (IOException e) {
         }
     }
@@ -138,22 +108,6 @@ final class PlayerAvatarAssetPack {
         }
     }
 
-    static void sendAvatarsToPlayer(PacketHandler ph) {
-        if (ph == null) return;
-        CommonAssetModule cam = CommonAssetModule.get();
-        if (cam == null) return;
-        List<CommonAsset> assets = new ArrayList<>(pushedAssets.values());
-        if (!assets.isEmpty()) {
-            cam.sendAssetsToPlayer(ph, assets, true);
-        }
-    }
-
-    static void cleanupAvatar(UUID uuid) {
-        String imagePath = getImagePath(uuid);
-        String assetName = "UI/WorldMap/MapMarkers/" + imagePath;
-        pushedAssets.remove(assetName);
-    }
-
     private static void ensureInitialized() {
         if (initialized) {
             return;
@@ -165,20 +119,9 @@ final class PlayerAvatarAssetPack {
             }
 
             try {
-                Path pluginLocation = Paths.get(PlayerAvatarMarkerPlugin.class
-                        .getProtectionDomain()
-                        .getCodeSource()
-                        .getLocation()
-                        .toURI());
-                Path modsDirectory = Files.isDirectory(pluginLocation)
-                        ? pluginLocation
-                        : pluginLocation.getParent();
-                Path worldRoot = modsDirectory.getParent();
-
-                dataRoot = worldRoot == null
-                    ? modsDirectory.resolve("PlayerAvatarMarker")
-                    : worldRoot.resolve("plugins").resolve("PlayerAvatarMarker");
-                packRoot = modsDirectory.resolve("PlayerAvatarMarkerAssets");
+                Path modsDirectory = PlayerAvatarPaths.resolveModsDirectory(PlayerAvatarMarkerPlugin.class);
+                dataRoot = PlayerAvatarPaths.resolvePluginDataRoot(PlayerAvatarMarkerPlugin.class, "PlayerAvatarMarker");
+                packRoot = PlayerAvatarPaths.resolveSiblingPackRoot(PlayerAvatarMarkerPlugin.class, "PlayerAvatarMarkerAssets");
 
                 Files.createDirectories(dataRoot);
                 Files.createDirectories(packRoot);
@@ -187,11 +130,14 @@ final class PlayerAvatarAssetPack {
                 Files.writeString(manifestPath, MANIFEST_JSON, StandardCharsets.UTF_8);
                 ensurePackIcon();
                 ensureStaticWorldMapAssets();
-                ensurePackEnabled(modsDirectory.getParent().resolve("config.json"));
+                Path worldRoot = PlayerAvatarPaths.resolveWorldRoot(PlayerAvatarMarkerPlugin.class);
+                if (worldRoot != null) {
+                    ensurePackEnabled(worldRoot.resolve("config.json"));
+                }
 
                 registerPackIfNeeded();
                 initialized = true;
-            } catch (IOException | URISyntaxException e) {
+            } catch (IOException e) {
                 throw new IllegalStateException("Failed to initialize avatar asset pack", e);
             }
         }

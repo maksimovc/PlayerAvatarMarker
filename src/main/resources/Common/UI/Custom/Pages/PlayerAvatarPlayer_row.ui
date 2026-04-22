@@ -38,6 +38,13 @@ Group {
       Text: "World";
     }
 
+    Label #VisibilityBadge {
+      Anchor: (Top: 8, Right: 12, Width: 136, Height: 16);
+      Style: (FontSize: 10, TextColor: #d9c38a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+      Text: "";
+      Visible: false;
+    }
+
     Button #MapToggleButton {
       Anchor: (Top: 18, Right: 268, Width: 120, Height: 36);
       Background: #35455f;

@@ -33,7 +33,7 @@ final class FastMiniMapCompatService {
             double viewerX, double viewerZ, int radiusBlocks) {
 
         PlayerAvatarMarkerPlugin plugin = PlayerAvatarMarkerPlugin.getInstance();
-        if (plugin != null && !plugin.resolvePlayerSettings(viewerUuid).minimapEnabled) {
+        if (plugin != null && !plugin.resolvePlayerSettings(viewerUuid).isEnabled(PlayerAvatarSurface.MINIMAP)) {
             return List.of();
         }
 
@@ -54,9 +54,10 @@ final class FastMiniMapCompatService {
         }
 
         PlayerAvatarPlayerSettings viewerSettings = plugin != null ? plugin.resolvePlayerSettings(viewerUuid) : new PlayerAvatarPlayerSettings();
-        if (!viewerSettings.minimapEnabled) {
+        if (!viewerSettings.isEnabled(PlayerAvatarSurface.MINIMAP)) {
             return List.of();
         }
+        PlayerRef viewerRef = plugin != null ? plugin.getActivePlayerRef(viewerUuid) : null;
 
         Collection<PlayerRef> playerRefs = world.getPlayerRefs();
         if (playerRefs == null || playerRefs.isEmpty()) {
@@ -72,43 +73,58 @@ final class FastMiniMapCompatService {
 
         List<FastMiniMapPlayerLayerApi.PlayerDot> dots = new ArrayList<>();
         for (PlayerRef ref : playerRefs) {
-            UUID uuid = ref.getUuid();
-            if (uuid == null || uuid.equals(viewerUuid)) {
-                continue; // skip self
-            }
+            try {
+                if (ref == null) {
+                    continue;
+                }
 
-            if (!viewerSettings.isEnabledFor(PlayerAvatarSurface.MINIMAP, viewerUuid, uuid)) {
-                continue;
-            }
+                UUID uuid = ref.getUuid();
+                if (uuid == null || uuid.equals(viewerUuid)) {
+                    continue;
+                }
 
-            Vector3d pos = PlayerAvatarLiveTracker.resolvePosition(ref);
-            if (pos == null) {
-                continue;
-            }
+                PlayerAvatarVisibilityDecision visibility =
+                        PlayerAvatarVisibilityService.resolve(viewerRef, viewerUuid, uuid);
+                PlayerAvatarVisibilityState visibilityState = visibility.state();
 
-            double dx = pos.x - viewerX;
-            double dz = pos.z - viewerZ;
-            if (dx * dx + dz * dz > radiusSq) {
-                continue;
-            }
+                boolean surfaceEnabled = viewerSettings.isEnabledFor(PlayerAvatarSurface.MINIMAP, viewerUuid, uuid);
+                if (!surfaceEnabled) {
+                    continue;
+                }
 
-            String username = ref.getUsername();
-            if (username == null || username.isEmpty()) {
-                username = uuid.toString().substring(0, 8);
-            }
+                if (!visibility.isVisible()) {
+                    continue;
+                }
 
-            BufferedImage icon = resolveIcon(uuid, username);
-            String label = showNickname ? username : null;
-            dots.add(new FastMiniMapPlayerLayerApi.PlayerDot(pos.x, pos.z, icon, label));
+                Vector3d pos = PlayerAvatarLiveTracker.resolvePosition(ref);
+                if (pos == null) {
+                    continue;
+                }
+
+                double dx = pos.x - viewerX;
+                double dz = pos.z - viewerZ;
+                if (dx * dx + dz * dz > radiusSq) {
+                    continue;
+                }
+
+                String username = PlayerAvatarPlayerNames.resolve(ref);
+
+                BufferedImage icon = resolveIcon(uuid, username, visibility.isGhosted());
+                String label = showNickname
+                        ? PlayerAvatarMarkerVisuals.decorateLabel(username, visibilityState, viewerRef)
+                        : null;
+                dots.add(new FastMiniMapPlayerLayerApi.PlayerDot(pos.x, pos.z, icon, label));
+            } catch (Exception ignored) {
+            }
         }
         return dots;
     }
 
-    private BufferedImage resolveIcon(UUID uuid, String username) {
+    private BufferedImage resolveIcon(UUID uuid, String username, boolean ghosted) {
         PlayerAvatarMarkerPlugin plugin = PlayerAvatarMarkerPlugin.getInstance();
         if (plugin == null || plugin.getAvatarService() == null) {
             return null;
         }
-        return plugin.getAvatarService().resolveMinimapIcon(uuid, username);
+        return plugin.getAvatarService().resolveMinimapIcon(uuid, username, ghosted);
     }
 }
