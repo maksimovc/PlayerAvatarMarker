@@ -25,7 +25,7 @@ record PlayerAvatarProviderContext(PlayerAvatarMarkerPlugin plugin,
         boolean worldMapVisible = PlayerAvatarWorldMapState.isWorldMapVisible(viewer);
         PlayerAvatarSurface surface = worldMapVisible ? PlayerAvatarSurface.MAP : PlayerAvatarSurface.COMPASS;
         PlayerAvatarPlayerSettings viewerSettings = plugin != null
-                ? plugin.resolvePlayerSettings(viewerUuid)
+            ? plugin.viewPlayerSettings(viewerUuid)
                 : new PlayerAvatarPlayerSettings();
         return new PlayerAvatarProviderContext(plugin, config, viewerRef, viewerUuid, viewerSettings, surface);
     }

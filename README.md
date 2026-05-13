@@ -2,7 +2,7 @@
 
 PlayerAvatarMarker is a Hytale server mod that replaces the generic player dot with each player's avatar portrait on the large world map and, when companion mods are present, on FastMiniMap and BetterMap surfaces as well.
 
-The current 1.5.0 release includes the built-in control UI, per-player visibility profiles, generated static marker overrides, the newer plugin data layout under `plugins/PlayerAvatarMarker`, and improved vanish compatibility for HyEssentialsX.
+The current 1.5.1 release includes the built-in control UI, per-player visibility profiles, generated static marker overrides, the newer plugin data layout under `plugins/PlayerAvatarMarker`, and lower repeated BetterMap/vanish reflection overhead on map updates.
 
 For the source-code layout and responsibility map, see [`ARCHITECTURE.md`](ARCHITECTURE.md). For release notes, see [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -23,7 +23,7 @@ For the source-code layout and responsibility map, see [`ARCHITECTURE.md`](ARCHI
 
 ## Installation
 
-1. Copy `PlayerAvatarMarker-1.5.0.jar` to `UserData/Saves/<YourWorld>/mods/`
+1. Copy `PlayerAvatarMarker-1.5.1.jar` to `UserData/Saves/<YourWorld>/mods/`
 2. Start the server
 
 PlayerAvatarMarker is a normal Hytale mod jar and belongs in the world's `mods/` folder. On first start it also creates the companion asset-pack directory `PlayerAvatarMarkerAssets` automatically for static world-map marker overrides.
@@ -71,7 +71,7 @@ cd PlayerAvatarMarker
 gradlew.bat build
 ```
 
-Output: `build/libs/PlayerAvatarMarker-1.5.0.jar`
+Output: `build/libs/PlayerAvatarMarker-1.5.1.jar`
 
 ## Requirements
 
@@ -88,19 +88,18 @@ Output: `build/libs/PlayerAvatarMarker-1.5.0.jar`
 - Compass toggle permission: `playeravatarmarker.settings.compass`
 - Admin bypass: `playeravatarmarker.admin`
 
-## 1.5.0 Highlights
+## 1.5.1 Highlights
 
-- HyEssentialsX vanished players are now resolved correctly for vanished viewers across map, minimap, compass, and `/playeravatar`
-- Live `PlayerRef` lookup now prefers the current `Universe` state instead of relying only on cached ready-time references
-- Dynamic avatar marker assets are now written and pushed earlier to reduce `pam-... doesn't exist!` warnings in client logs
-- Generated asset-pack metadata is aligned with the new 1.5.0 release
+- Vanish-provider plugin and class reflection is now cached longer to reduce repeated lookup churn
+- BetterMap viewer settings stay cached longer between map updates
+- Generated asset-pack metadata is aligned with the new 1.5.1 release
 
 ## Short changelog
 
 - fixed HyEssentialsX `/vanish` compatibility for vanished-to-vanished visibility
 - fixed stale player-reference lookups that could affect UI and marker visibility state
-- improved dynamic marker asset publishing so normal/ghosted avatar images become available sooner
-- bumped release version to `1.5.0`
+- reduced repeated BetterMap and vanish reflection overhead during marker updates
+- bumped release version to `1.5.1`
 
 ## License
 

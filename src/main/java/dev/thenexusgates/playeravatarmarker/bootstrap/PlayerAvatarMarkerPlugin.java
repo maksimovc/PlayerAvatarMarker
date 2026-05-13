@@ -1,5 +1,7 @@
 package dev.thenexusgates.playeravatarmarker;
 
+import javax.imageio.ImageIO;
+
 import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
@@ -71,6 +73,7 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
+        ImageIO.setUseCache(false);
         PlayerAvatarStorage.init();
         PlayerAvatarAssetPack.init();
         PlayerAvatarLiveTracker.register();
@@ -131,6 +134,8 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
                 registerProvider(playerWorld);
             }
             registerActivePlayer(ref);
+            PlayerAvatarVisibilityService.invalidateCachedState();
+            BetterMapBridge.invalidateViewerSettings(ref.getUuid());
             if (avatarService != null && ref != null) {
                 avatarService.clearViewer(ref.getUuid());
             }
@@ -145,6 +150,8 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             java.util.UUID uuid = ref.getUuid();
             if (uuid == null) return;
             activePlayers.remove(uuid);
+            PlayerAvatarVisibilityService.invalidateCachedState();
+            BetterMapBridge.invalidateViewerSettings(uuid);
             if (playerSettingsStore != null) {
                 playerSettingsStore.unload(uuid);
             }
@@ -206,6 +213,8 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             fastMiniMapCompatService.unregister();
         }
         PlayerAvatarLiveTracker.shutdown();
+        PlayerAvatarVisibilityService.invalidateCachedState();
+        BetterMapBridge.clearViewerSettingsCache();
         activePlayers.clear();
     }
 
@@ -218,6 +227,17 @@ public final class PlayerAvatarMarkerPlugin extends JavaPlugin {
             return new PlayerAvatarPlayerSettings();
         }
         return playerSettingsStore.resolve(playerUuid);
+    }
+
+    public PlayerAvatarPlayerSettings viewPlayerSettings(PlayerRef playerRef) {
+        return viewPlayerSettings(playerRef != null ? playerRef.getUuid() : null);
+    }
+
+    public PlayerAvatarPlayerSettings viewPlayerSettings(UUID playerUuid) {
+        if (playerSettingsStore == null) {
+            return new PlayerAvatarPlayerSettings();
+        }
+        return playerSettingsStore.view(playerUuid);
     }
 
     public void applyPlayerSettings(PlayerRef playerRef, PlayerAvatarPlayerSettings settings) {

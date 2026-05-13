@@ -35,13 +35,23 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
             return;
         }
 
+        PlayerAvatarSurface surface = context.surface();
+        PlayerAvatarConfig config = context.config();
+        boolean showNickname = config == null || config.showNickname;
+        boolean showSelfMarker = surface != PlayerAvatarSurface.MAP || PlayerAvatarWorldMapState.shouldShowSelfMarker(viewer);
+        PlayerAvatarVisibilityService.VisibilityLookup visibilityLookup =
+                PlayerAvatarVisibilityService.createLookup(context.viewerRef(), context.viewerUuid(), collector);
+
         Collection<PlayerRef> playerRefs = world.getPlayerRefs();
         if (playerRefs == null || playerRefs.isEmpty()) {
             return;
         }
 
-        Vector3d viewerPosition = findViewerPosition(playerRefs, viewerUuid);
-        long maxDistanceSquared = context.surface() == PlayerAvatarSurface.MAP
+        Vector3d viewerPosition = PlayerAvatarLiveTracker.resolvePosition(context.viewerRef());
+        if (viewerPosition == null) {
+            viewerPosition = findViewerPosition(playerRefs, viewerUuid);
+        }
+        long maxDistanceSquared = surface == PlayerAvatarSurface.MAP
                 ? Long.MAX_VALUE
                 : maxDistanceSquared(viewerSettings.radarRange());
 
@@ -52,15 +62,7 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                     continue;
                 }
                 boolean isViewer = context.isViewer(playerUuid);
-                boolean filteredByCollector = PlayerAvatarVisibilityService.isHiddenByCollectorFilter(collector, ref);
-                boolean filteredByVanishCollector = PlayerAvatarVisibilityService.isHiddenByHyEssentialsXVanishCollector(collector, ref);
-                PlayerAvatarVisibilityDecision visibility =
-                        PlayerAvatarVisibilityService.resolve(
-                                context.viewerRef(),
-                                context.viewerUuid(),
-                                playerUuid,
-                                filteredByCollector,
-                                filteredByVanishCollector);
+                PlayerAvatarVisibilityDecision visibility = visibilityLookup.resolve(ref);
                 PlayerAvatarVisibilityState visibilityState = visibility.state();
                 boolean surfaceEnabled = context.isTargetEnabled(playerUuid, visibility);
                 if (!surfaceEnabled) {
@@ -70,7 +72,7 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                     continue;
                 }
 
-                if (context.surface() == PlayerAvatarSurface.MAP && isViewer && !PlayerAvatarWorldMapState.shouldShowSelfMarker(viewer)) {
+                if (surface == PlayerAvatarSurface.MAP && isViewer && !showSelfMarker) {
                     continue;
                 }
 
@@ -92,16 +94,16 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                 }
 
                 String markerLabel = null;
-                if (context.config() == null || context.config().showNickname) {
+                if (showNickname) {
                     markerLabel = PlayerAvatarMarkerVisuals.decorateLabel(playerName + " (" + distance + "m)", visibilityState, context.viewerRef());
                 }
 
                 PlayerAvatarMarkerVisuals.AvatarVisual avatarVisual =
                         PlayerAvatarMarkerVisuals.resolveAvatarVisual(context.viewerRef(), playerUuid, playerName, visibilityState, null);
-                Vector3f markerRotation = PlayerAvatarMarkerFactory.resolveMarkerRotation(
-                        context.config(),
-                        PlayerAvatarLiveTracker.resolveRotation(ref));
-                Transform markerTransform = new Transform(playerTransform.getPosition(), markerRotation);
+                Vector3f markerRotation = PlayerAvatarMarkerFactory.resolveMarkerRotation(config, playerTransform.getRotation());
+                Transform markerTransform = markerRotation == playerTransform.getRotation()
+                        ? playerTransform
+                        : new Transform(playerTransform.getPosition(), markerRotation);
 
                 MapMarker marker = PlayerAvatarMarkerFactory.createPlainPlayerMarker(
                     PlayerAvatarMarkerFactory.buildDynamicMarkerId(
@@ -116,7 +118,7 @@ final class BetterMapCompatProvider implements WorldMapManager.MarkerProvider {
                         markerTransform);
 
                 BetterMapBridge.injectTeleportContextMenu(marker, viewer);
-                if (context.surface() == PlayerAvatarSurface.MAP) {
+                if (surface == PlayerAvatarSurface.MAP) {
                     collector.addIgnoreViewDistance(marker);
                 } else {
                     collector.add(marker);

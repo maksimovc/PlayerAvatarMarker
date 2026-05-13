@@ -5,7 +5,6 @@ import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.asset.type.gameplay.WorldMapConfig;
-import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -36,20 +35,19 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
             return;
         }
 
+        PlayerAvatarSurface surface = context.surface();
+        PlayerAvatarConfig config = context.config();
+        boolean showNickname = config == null || config.showNickname;
+        boolean showSelfMarker = surface != PlayerAvatarSurface.MAP || PlayerAvatarWorldMapState.shouldShowSelfMarker(viewer);
+        PlayerAvatarVisibilityService.VisibilityLookup visibilityLookup =
+                PlayerAvatarVisibilityService.createLookup(context.viewerRef(), context.viewerUuid(), collector);
+
         for (PlayerRef ref : playerRefs) {
             try {
                 UUID playerUuid = ref.getUuid();
                 if (playerUuid == null) continue;
                 boolean isViewer = context.isViewer(playerUuid);
-                boolean filteredByCollector = PlayerAvatarVisibilityService.isHiddenByCollectorFilter(collector, ref);
-                boolean filteredByVanishCollector = PlayerAvatarVisibilityService.isHiddenByHyEssentialsXVanishCollector(collector, ref);
-                PlayerAvatarVisibilityDecision visibility =
-                        PlayerAvatarVisibilityService.resolve(
-                                context.viewerRef(),
-                                context.viewerUuid(),
-                                playerUuid,
-                                filteredByCollector,
-                                filteredByVanishCollector);
+                PlayerAvatarVisibilityDecision visibility = visibilityLookup.resolve(ref);
                 PlayerAvatarVisibilityState visibilityState = visibility.state();
                 boolean surfaceEnabled = context.isTargetEnabled(playerUuid, visibility);
                 if (!surfaceEnabled) {
@@ -58,21 +56,22 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
                 if (!visibility.isVisible()) {
                     continue;
                 }
-                Transform t = PlayerAvatarLiveTracker.resolveTransform(ref);
-                if (t == null) continue;
-                Vector3d position = t.getPosition();
+                Transform liveTransform = PlayerAvatarLiveTracker.resolveTransform(ref);
+                if (liveTransform == null) continue;
+                Vector3d position = liveTransform.getPosition();
                 if (position == null) continue;
                 String playerName = PlayerAvatarPlayerNames.resolve(ref);
                 PlayerAvatarMarkerVisuals.AvatarVisual avatarVisual =
                         PlayerAvatarMarkerVisuals.resolveAvatarVisual(context.viewerRef(), playerUuid, playerName, visibilityState, null);
-                Vector3f headRotation = PlayerAvatarLiveTracker.resolveRotation(ref);
-                Vector3f markerRotation = PlayerAvatarMarkerFactory.resolveMarkerRotation(context.config(), headRotation);
-                Transform transform = new Transform(position, markerRotation);
-                if (context.surface() == PlayerAvatarSurface.MAP && isViewer && !PlayerAvatarWorldMapState.shouldShowSelfMarker(viewer)) {
+                Vector3f markerRotation = PlayerAvatarMarkerFactory.resolveMarkerRotation(config, liveTransform.getRotation());
+                Transform transform = markerRotation == liveTransform.getRotation()
+                        ? liveTransform
+                        : new Transform(position, markerRotation);
+                if (surface == PlayerAvatarSurface.MAP && isViewer && !showSelfMarker) {
                     continue;
                 }
 
-                String markerLabel = context.config() == null || context.config().showNickname
+                String markerLabel = showNickname
                         ? PlayerAvatarMarkerVisuals.decorateLabel(playerName, visibilityState, context.viewerRef())
                         : null;
 
@@ -87,7 +86,7 @@ public class PlayerAvatarMarkerProvider implements WorldMapManager.MarkerProvide
                         PlayerAvatarMarkerVisuals.labelColor(visibilityState),
                         avatarVisual.markerImage(),
                         transform);
-                if (context.surface() == PlayerAvatarSurface.MAP) {
+                if (surface == PlayerAvatarSurface.MAP) {
                     collector.addIgnoreViewDistance(marker);
                 } else {
                     collector.add(marker);

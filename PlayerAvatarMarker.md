@@ -2,7 +2,7 @@
 
 Shows each online player's avatar portrait on the world map and optionally on FastMiniMap or BetterMap when those mods are installed. Avatars are fetched from [hyvatar.io](https://hyvatar.io/) and cached under the plugin data directory.
 
-Release `1.5.0` also improves vanish compatibility for HyEssentialsX and reduces dynamic world-map asset races for generated marker images.
+Release `1.5.1` reduces repeated vanish/BetterMap reflection overhead on map updates and keeps the generated asset-pack metadata aligned with the current build.
 
 ## Features
 

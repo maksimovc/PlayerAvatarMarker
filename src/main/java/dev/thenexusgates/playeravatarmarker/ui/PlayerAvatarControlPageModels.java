@@ -49,7 +49,9 @@ final class PlayerAvatarControlPageModels {
                 .comparing((PlayerRef ref) -> !isSelf(ref, viewerUuid))
                 .thenComparing(ref -> PlayerAvatarPlayerNames.resolveOrLocalizedUnknown(ref, viewerRef).toLowerCase(Locale.ROOT)));
 
-        PlayerAvatarPlayerSettings settings = plugin.resolvePlayerSettings(viewerRef);
+        PlayerAvatarPlayerSettings settings = plugin.viewPlayerSettings(viewerRef);
+        PlayerAvatarVisibilityService.VisibilityLookup visibilityLookup =
+                PlayerAvatarVisibilityService.createLookup(viewerRef, viewerUuid, null);
         List<RowModel> rows = new ArrayList<>(players.size());
         for (PlayerRef ref : players) {
             UUID playerUuid = ref.getUuid();
@@ -59,7 +61,7 @@ final class PlayerAvatarControlPageModels {
 
             String playerName = PlayerAvatarPlayerNames.resolveOrLocalizedUnknown(ref, viewerRef);
             boolean self = isSelf(ref, viewerUuid);
-            PlayerAvatarVisibilityDecision visibility = PlayerAvatarVisibilityService.resolve(viewerRef, viewerUuid, playerUuid);
+            PlayerAvatarVisibilityDecision visibility = visibilityLookup.resolve(ref);
             PlayerAvatarVisibilityState visibilityState = visibility.state();
             if (!visibility.isVisible()) {
                 continue;

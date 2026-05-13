@@ -38,6 +38,13 @@ final class PlayerAvatarPlayerSettingsStore {
         return cache.computeIfAbsent(playerUuid, this::load).copy();
     }
 
+    PlayerAvatarPlayerSettings view(UUID playerUuid) {
+        if (playerUuid == null) {
+            return new PlayerAvatarPlayerSettings();
+        }
+        return cache.computeIfAbsent(playerUuid, this::load);
+    }
+
     void save(UUID playerUuid, PlayerAvatarPlayerSettings settings) {
         if (playerUuid == null || settings == null) {
             return;

@@ -77,7 +77,6 @@ final class PlayerAvatarAvatarService {
         if (viewer != null && assetPath != null) {
             viewerAssetDelivery.deliver(viewer, assetPath, markerPng);
         }
-        PlayerAvatarAssetPack.writeAvatar(markerImagePath, markerPng);
         return markerImagePath;
     }
 

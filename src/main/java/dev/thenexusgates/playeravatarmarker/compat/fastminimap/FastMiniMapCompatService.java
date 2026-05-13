@@ -33,9 +33,6 @@ final class FastMiniMapCompatService {
             double viewerX, double viewerZ, int radiusBlocks) {
 
         PlayerAvatarMarkerPlugin plugin = PlayerAvatarMarkerPlugin.getInstance();
-        if (plugin != null && !plugin.resolvePlayerSettings(viewerUuid).isEnabled(PlayerAvatarSurface.MINIMAP)) {
-            return List.of();
-        }
 
         Universe universe = Universe.get();
         if (universe == null) {
@@ -53,11 +50,13 @@ final class FastMiniMapCompatService {
             return List.of();
         }
 
-        PlayerAvatarPlayerSettings viewerSettings = plugin != null ? plugin.resolvePlayerSettings(viewerUuid) : new PlayerAvatarPlayerSettings();
+        PlayerAvatarPlayerSettings viewerSettings = plugin != null ? plugin.viewPlayerSettings(viewerUuid) : new PlayerAvatarPlayerSettings();
         if (!viewerSettings.isEnabled(PlayerAvatarSurface.MINIMAP)) {
             return List.of();
         }
         PlayerRef viewerRef = plugin != null ? plugin.getActivePlayerRef(viewerUuid) : null;
+        PlayerAvatarVisibilityService.VisibilityLookup visibilityLookup =
+                PlayerAvatarVisibilityService.createLookup(viewerRef, viewerUuid, null);
 
         Collection<PlayerRef> playerRefs = world.getPlayerRefs();
         if (playerRefs == null || playerRefs.isEmpty()) {
@@ -83,8 +82,7 @@ final class FastMiniMapCompatService {
                     continue;
                 }
 
-                PlayerAvatarVisibilityDecision visibility =
-                        PlayerAvatarVisibilityService.resolve(viewerRef, viewerUuid, uuid);
+                PlayerAvatarVisibilityDecision visibility = visibilityLookup.resolve(ref);
                 PlayerAvatarVisibilityState visibilityState = visibility.state();
 
                 boolean surfaceEnabled = viewerSettings.isEnabledFor(PlayerAvatarSurface.MINIMAP, viewerUuid, uuid);
@@ -108,12 +106,11 @@ final class FastMiniMapCompatService {
                 }
 
                 String username = PlayerAvatarPlayerNames.resolve(ref);
-
                 BufferedImage icon = resolveIcon(uuid, username, visibility.isGhosted());
                 String label = showNickname
                         ? PlayerAvatarMarkerVisuals.decorateLabel(username, visibilityState, viewerRef)
                         : null;
-                dots.add(new FastMiniMapPlayerLayerApi.PlayerDot(pos.x, pos.z, icon, label));
+                dots.add(new FastMiniMapPlayerLayerApi.PlayerDot(pos.x, pos.z, icon, label, Double.NaN));
             } catch (Exception ignored) {
             }
         }

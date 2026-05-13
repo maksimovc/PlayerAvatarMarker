@@ -6,15 +6,28 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 
 import java.lang.reflect.Method;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 final class BetterMapBridge {
 
+    private static final long VIEWER_SETTINGS_CACHE_TTL_MS = 1000L;
     private static volatile BridgeState bridgeState;
+    private static final ConcurrentHashMap<UUID, ViewerSettingsCacheEntry> viewerSettingsCache = new ConcurrentHashMap<>();
 
     private BetterMapBridge() {}
 
     static boolean isAvailable() {
         return resolveBridgeState().available;
+    }
+
+    static void invalidateViewerSettings(UUID viewerUuid) {
+        if (viewerUuid != null) {
+            viewerSettingsCache.remove(viewerUuid);
+        }
+    }
+
+    static void clearViewerSettingsCache() {
+        viewerSettingsCache.clear();
     }
 
     static ViewerSettings resolveViewerSettings(Player viewer) {
@@ -23,6 +36,23 @@ final class BetterMapBridge {
             return ViewerSettings.disabled();
         }
 
+        UUID viewerUuid = ((CommandSender) viewer).getUuid();
+        long now = System.currentTimeMillis();
+        if (viewerUuid != null) {
+            ViewerSettingsCacheEntry cached = viewerSettingsCache.get(viewerUuid);
+            if (cached != null && cached.expiresAtMs() >= now) {
+                return cached.settings();
+            }
+        }
+
+        ViewerSettings resolved = resolveViewerSettingsUncached(state, viewer, viewerUuid);
+        if (viewerUuid != null) {
+            viewerSettingsCache.put(viewerUuid, new ViewerSettingsCacheEntry(resolved, now + VIEWER_SETTINGS_CACHE_TTL_MS));
+        }
+        return resolved;
+    }
+
+    private static ViewerSettings resolveViewerSettingsUncached(BridgeState state, Player viewer, UUID viewerUuid) {
         try {
             Object modConfig = state.modConfigGetInstance.invoke(null);
             if (modConfig == null) {
@@ -34,7 +64,6 @@ final class BetterMapBridge {
                 return ViewerSettings.disabled();
             }
 
-            UUID viewerUuid = ((CommandSender) viewer).getUuid();
             Object playerConfig = null;
             if (viewerUuid != null) {
                 Object playerConfigManager = state.playerConfigManagerGetInstance.invoke(null);
@@ -145,6 +174,9 @@ final class BetterMapBridge {
         static ViewerSettings disabled() {
             return new ViewerSettings(false, 0);
         }
+    }
+
+    private record ViewerSettingsCacheEntry(ViewerSettings settings, long expiresAtMs) {
     }
 
     private record BridgeState(
